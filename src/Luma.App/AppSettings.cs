@@ -4,7 +4,9 @@ public sealed class AppSettings
 {
     public int CacheGiB { get; set; } = 2;
     public string Theme { get; set; } = "Default";
-    public static string LocalRoot => Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData), "Luma");
+    public static bool IsSmokeTest => Environment.GetCommandLineArgs().Contains("--smoke-test");
+    public static string LocalRoot => IsSmokeTest ? Path.Combine(Path.GetTempPath(), "Luma-smoke-" + Environment.ProcessId)
+        : Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData), "Luma");
     public static AppSettings Load()
     {
         try { return JsonSerializer.Deserialize<AppSettings>(File.ReadAllText(Path.Combine(LocalRoot,"settings.json"))) ?? new(); }

@@ -9,7 +9,7 @@ public sealed class WindowsTests
     [Fact]
     public async Task GeneratesAndCachesBitmapThroughVolumeIdentity()
     {
-        var root = Path.Combine(Path.GetTempPath(), "Luma-bitmap-" + Guid.NewGuid());
+        var root = Path.Combine(Path.GetTempPath(), "Luma-bitmap-আলো-" + Guid.NewGuid());
         var cacheRoot = Path.Combine(Path.GetTempPath(), "Luma-cache-" + Guid.NewGuid());
         Directory.CreateDirectory(root);
         try
@@ -57,6 +57,11 @@ public sealed class WindowsTests
             File.WriteAllText(Path.Combine(root, "probe.txt"), "same volume");
             Assert.Equal("same volume", File.ReadAllText(Path.Combine(resolved!, "probe.txt")));
             Assert.Null(resolver.ResolveRoot("windows-volume-v1:invalid"));
+            var encoded = source.Id["windows-volume-v1:".Length..];
+            var identity = System.Text.Json.Nodes.JsonNode.Parse(Convert.FromBase64String(encoded))!;
+            identity["Serial"] = identity["Serial"]!.GetValue<uint>() ^ 1u;
+            var differentVolume = "windows-volume-v1:" + Convert.ToBase64String(System.Text.Encoding.UTF8.GetBytes(identity.ToJsonString()));
+            Assert.Null(resolver.ResolveRoot(differentVolume));
         }
         finally { Directory.Delete(root, true); }
     }

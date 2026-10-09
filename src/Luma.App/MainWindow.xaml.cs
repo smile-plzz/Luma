@@ -51,9 +51,26 @@ public sealed partial class MainWindow : Window
             await Task.Run(() => catalog.InitializeAsync());
             cache = await Task.Run(() => new ThumbnailCache(Path.Combine(AppSettings.LocalRoot, "thumbnails"), Math.Clamp(settings.CacheGiB, 1, 32) * 1024L * 1024 * 1024));
             thumbnails = new(cache, resolver, new WindowsThumbnailGenerator());
+            if (AppSettings.IsSmokeTest) await SeedSmokeFixtures();
             await LoadSources(); ready = true; availabilityTimer.Start(); await Refresh();
         });
     }
+    private async Task SeedSmokeFixtures()
+    {
+        var folder = Path.Combine(AppSettings.LocalRoot, "Fixture originals"); Directory.CreateDirectory(folder);
+        for (int index = 0; index < 8; index++)
+        {
+            using var writer = new BinaryWriter(File.Create(Path.Combine(folder, $"fixture{index:00}.bmp")));
+            writer.Write((ushort)0x4D42); writer.Write(54 + 256 * 256 * 3); writer.Write(0); writer.Write(54);
+            writer.Write(40); writer.Write(256); writer.Write(256); writer.Write((ushort)1); writer.Write((ushort)24);
+            writer.Write(0); writer.Write(256 * 256 * 3); writer.Write(0); writer.Write(0); writer.Write(0); writer.Write(0);
+            for (int y = 0; y < 256; y++) for (int x = 0; x < 256; x++)
+            { writer.Write((byte)(80 + index * 15)); writer.Write((byte)y); writer.Write((byte)x); }
+        }
+        var source = resolver.Register(folder);
+        await Task.Run(() => catalog.ScanAsync(source.Id, folder));
+    }
+
     private async void OnClosed(object sender, WindowEventArgs args)
     {
         ready = false; availabilityTimer.Stop(); scanCancellation?.Cancel(); queryCancellation?.Cancel(); searchCancellation?.Cancel();

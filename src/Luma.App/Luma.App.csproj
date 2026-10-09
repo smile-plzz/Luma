@@ -17,4 +17,8 @@
     <PackageReference Include="Microsoft.Windows.SDK.BuildTools" Version="10.0.26100.4654" />
     <ProjectReference Include="../Luma.Windows/Luma.Windows.csproj" />
   </ItemGroup>
+  <Target Name="IncludeWinUIResourcesInPublish" AfterTargets="Publish">
+    <ItemGroup><_WinUIResources Include="$(OutDir)**\*.xbf;$(OutDir)**\*.pri" /></ItemGroup>
+    <Copy SourceFiles="@(_WinUIResources)" DestinationFiles="@(_WinUIResources->'$(PublishDir)%(RecursiveDir)%(Filename)%(Extension)')" SkipUnchangedFiles="true" />
+  </Target>
 </Project>

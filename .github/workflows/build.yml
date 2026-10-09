@@ -41,6 +41,11 @@ jobs:
           dotnet-version: '8.0.x'
       - name: Publish self-contained Windows app
         run: dotnet publish src/Luma.App/Luma.App.csproj -c Release -r win-x64 -p:Platform=x64 -o artifacts/Luma-win-x64
+      - name: Inspect published XAML resources
+        shell: pwsh
+        run: |
+          Get-ChildItem artifacts/Luma-win-x64 -Recurse -Include *.xbf,*.pri | Select-Object FullName,Length
+          if (!(Test-Path artifacts/Luma-win-x64/MainWindow.xbf)) { throw 'Published MainWindow.xbf is missing.' }
       - name: Launch and verify desktop window
         shell: pwsh
         run: ./scripts/Smoke-Test.ps1 -Executable artifacts/Luma-win-x64/Luma.App.exe

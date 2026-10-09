@@ -18,7 +18,12 @@ public partial class App : Application
     }
     private static void Log(Exception? exception)
     {
-        try { File.AppendAllText(Path.Combine(AppContext.BaseDirectory, "startup-error.txt"), DateTime.UtcNow + " " + exception + Environment.NewLine); } catch { }
+        try
+        {
+            WriteLog(DateTime.UtcNow + " " + exception);
+            if (exception is not null)
+                foreach (System.Collections.DictionaryEntry detail in exception.Data) WriteLog(detail.Key + ": " + detail.Value);
+        } catch { }
     }
     protected override void OnLaunched(LaunchActivatedEventArgs args)
     {
