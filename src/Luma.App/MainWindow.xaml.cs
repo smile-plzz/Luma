@@ -1,4 +1,5 @@
 using System.Diagnostics;
+using System.Text.Json;
 using Luma.Core;
 using Luma.Windows;
 using Microsoft.UI.Xaml;
@@ -37,7 +38,7 @@ public sealed partial class MainWindow : Window
     {
         catalog = new(Path.Combine(AppSettings.LocalRoot, "catalog.db"), resolver);
         InitializeComponent();
-        AppWindow.Resize(new Windows.Graphics.SizeInt32(1280, 850));
+        AppWindow.Resize(new global::Windows.Graphics.SizeInt32(1280, 850));
         Closed += OnClosed;
         availabilityTimer.Tick += async (_, _) => { if (ready && !scanning && !operation) await Guard(async () => await LoadSources()); };
     }
@@ -231,7 +232,9 @@ public sealed partial class MainWindow : Window
         var files = new List<IStorageItem>();
         foreach (var card in selected) files.Add(await StorageFile.GetFileFromPathAsync(Resolve(card.Item.Media)));
         var data = new DataPackage { RequestedOperation = cut ? DataPackageOperation.Move : DataPackageOperation.Copy };
-        data.SetStorageItems(files); Clipboard.SetContent(data); Clipboard.Flush();
+        data.SetStorageItems(files);
+        data.SetData("Luma.FileSelection.v1", JsonSerializer.Serialize(selected.Select(c => c.Item.Media).ToArray()));
+        Clipboard.SetContent(data); Clipboard.Flush();
         Notify($"{files.Count} file(s) ready to {(cut ? "move" : "copy")}. Paste into a destination folder.");
     }
     private async void CopySelected(object sender, RoutedEventArgs e) => await Guard(() => Copy(false), true);
@@ -243,8 +246,22 @@ public sealed partial class MainWindow : Window
         var items = await data.GetStorageItemsAsync();
         if (items.Any(i => i is not StorageFile)) throw new NotSupportedException("Phase 1 pastes files only. Use Explorer to move folders.");
         var destination = await PickFolder(); if (destination is null) return;
+        var paths = items.Select(i => i.Path).ToArray();
+        if (data.Contains("Luma.FileSelection.v1"))
+        {
+            var descriptors = JsonSerializer.Deserialize<CachedMedia[]>((string)await data.GetDataAsync("Luma.FileSelection.v1"))
+                ?? throw new IOException("Clipboard file information is unavailable. Copy the files again.");
+            paths = descriptors.Select(media =>
+            {
+                var path = Resolve(media); var info = new FileInfo(path);
+                if (info.Length != media.Length || info.LastWriteTimeUtc.Ticks != media.ModifiedTicks)
+                    throw new IOException("A selected file changed. Rescan and copy it again before pasting.");
+                return path;
+            }).ToArray();
+        }
+        if (paths.Any(string.IsNullOrWhiteSpace)) throw new NotSupportedException("Paste requires local files.");
         var move = data.RequestedOperation.HasFlag(DataPackageOperation.Move);
-        if (ShellFiles.Run(Handle, move ? 1u : 2u, items.Select(i => i.Path), destination))
+        if (ShellFiles.Run(Handle, move ? 1u : 2u, paths, destination))
         { data.ReportOperationCompleted(move ? DataPackageOperation.Move : DataPackageOperation.Copy); if (move) Clipboard.Clear(); }
         await RescanCurrent();
     }

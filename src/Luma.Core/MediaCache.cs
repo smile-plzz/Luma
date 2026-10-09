@@ -54,7 +54,7 @@ public sealed partial class MediaCache(string databasePath, ISourceResolver? sou
         await using (var seen = db.CreateCommand())
         {
             seen.Transaction = (SqliteTransaction)transaction;
-            seen.CommandText = "CREATE TEMP TABLE scanned(path TEXT PRIMARY KEY)";
+            seen.CommandText = "DROP TABLE IF EXISTS temp.scanned; CREATE TEMP TABLE scanned(path TEXT PRIMARY KEY)";
             await seen.ExecuteNonQueryAsync(ct);
         }
         bool complete = true;

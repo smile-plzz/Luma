@@ -35,7 +35,7 @@ public sealed class WindowsSourceResolver : ISourceResolver
                 throw new NotSupportedException("Choose the actual folder instead of a symbolic link or junction.");
             current = current.Parent;
         }
-        var identity = new Identity(volume.ToString().ToUpperInvariant(), serial, relative);
+        var identity = new Identity(volume.ToString(), serial, relative);
         return new(Prefix + Convert.ToBase64String(JsonSerializer.SerializeToUtf8Bytes(identity)), folder);
     }
 
@@ -47,11 +47,12 @@ public sealed class WindowsSourceResolver : ISourceResolver
             var identity = JsonSerializer.Deserialize<Identity>(Convert.FromBase64String(sourceId[Prefix.Length..]));
             if (identity is null || string.IsNullOrEmpty(identity.Volume) || string.IsNullOrEmpty(identity.Folder) || !identity.Volume.StartsWith(@"\\?\VOLUME{", StringComparison.OrdinalIgnoreCase)
                 || !identity.Volume.EndsWith(@"}\", StringComparison.Ordinal) || identity.Volume.Length != 49 ||
-                !Guid.TryParse(identity.Volume[11..^2], out _) ||
-                !TrySerial(identity.Volume, out var serial) || serial != identity.Serial) return null;
+                !Guid.TryParse(identity.Volume[11..^2], out var volumeGuid)) return null;
+            var volumeName = $@"\\?\Volume{{{volumeGuid:D}}}\";
+            if (!TrySerial(volumeName, out var serial) || serial != identity.Serial) return null;
             // Resolve the current mount dynamically: Shell/WinRT APIs do not consistently accept volume-GUID paths.
             var paths = new char[32768];
-            if (!GetVolumePathNamesForVolumeName(identity.Volume, paths, (uint)paths.Length, out _)) return null;
+            if (!GetVolumePathNamesForVolumeName(volumeName, paths, (uint)paths.Length, out _)) return null;
             foreach (var mount in new string(paths).Split('\0', StringSplitOptions.RemoveEmptyEntries))
             {
                 var root = identity.Folder == "." ? mount : SourcePaths.Combine(mount, identity.Folder);
