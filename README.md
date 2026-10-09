@@ -1,45 +1,53 @@
 # Luma
 
-A local-first Windows media organizer: browse existing photos and videos, then open them in their default apps. **This repository currently contains the indexing/caching engine and Windows adapters, not a runnable desktop UI.**
+A native Windows media library for existing folders and drives. Browse photos and videos, organize favorites and tags, and open originals in your default apps.
 
-## Implemented
+## Run the Windows app
 
-- SQLite media catalog with read-only recursive indexing and cancellation rollback.
-- Internal-disk thumbnail cache: atomic replacement, persistent LRU, configurable byte budget (default 2 GiB), bounded entries, and interrupted-write recovery.
-- Cache-first thumbnail service: cached thumbnails are returned without accessing external drives; cache misses use a verified source and reject stale metadata.
-- Windows volume GUID + serial + relative-folder identity, independent of drive letter. Separate folders on a drive remain separate sources.
-- Windows system thumbnail generation for photos/videos supported by installed codecs.
-- Automated core tests on Windows/Linux, plus Windows volume identity tests.
+1. Open the **Build and test** GitHub Actions run for the Phase 1 branch/PR.
+2. Download the **Luma-Phase1-win-x64** artifact from a successful run.
+3. Extract the entire ZIP to a writable folder and run **Luma.App.exe**. Keep the bundled files beside the executable.
+4. Select **Add folder or drive**. Browse the indexed media; thumbnails are cached as you visit pages.
 
-## Developer usage (Windows)
+Windows 10 version 2004+ or Windows 11, x64. The portable build bundles .NET and Windows App SDK dependencies. It is unsigned, so Windows may show its usual downloaded-app warning. There is no installer or store package in Phase 1.
 
-Reference `src/Luma.Windows/Luma.Windows.csproj` from a Windows .NET 8 host targeting Windows 10 build 19041 or later:
+## What works
 
-```csharp
-var local = Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData), "Luma");
-var resolver = new Luma.Windows.WindowsSourceResolver();
-var catalog = new Luma.Core.MediaCache(Path.Combine(local, "catalog.db"), resolver);
-await catalog.InitializeAsync();
-var source = resolver.Register(@"E:\Photos");
-await catalog.ScanAsync(source.Id, source.RootPath);
-using var thumbnails = new Luma.Core.ThumbnailCache(Path.Combine(local, "thumbnails"));
-var service = new Luma.Core.ThumbnailService(thumbnails, resolver, new Luma.Windows.WindowsThumbnailGenerator());
-var media = await catalog.ListAsync(source.Id);
-foreach (var item in media.Take(50))
-{
-    var encodedImage = await service.GetAsync(item); // null => show an offline/unsupported placeholder
-}
-```
+- Background read-only folder/drive scanning, cancellation, rescanning and safe stale-entry reconciliation after an error-free scan.
+- Paged thumbnail grid, timeline by modification month, search, source/folder filters, photo/video filters, favorites and tags.
+- Default-app opening, Explorer reveal, copy/cut/paste, rename and Windows Recycle Bin deletion dialogs.
+- PC-local SQLite catalog and bounded persistent thumbnails. Cached hits do not probe an external drive.
+- Volume GUID/serial/folder identities that resolve a drive's current mount instead of trusting its old letter.
+- Light/dark/system themes and configurable cache limit (1–32 GiB, applied at restart).
 
-Persist source IDs when registering sources. After restart, use the same ID; the resolver locates the volume without trusting its old drive letter. Call indexing and catalog enumeration from a background worker: filesystem and SQLite operations may block. Keep one cache instance per directory; a lock prevents concurrent process owners. Dispose it only after requests finish.
+## Shortcuts
+
+| Shortcut | Action |
+| --- | --- |
+| Ctrl+C / Ctrl+X | Copy / cut selected originals |
+| Ctrl+V | Choose a destination folder and paste |
+| Ctrl+A | Select the current page |
+| F2 | Rename selected original |
+| Delete | Confirm deletion through Windows shell |
+| Double-click | Open in the default app |
+
+Text inputs keep their normal editing shortcuts. Files on offline drives can be browsed from cache but cannot be opened or modified. Windows handles collisions and native file-operation confirmations.
+
+## Storage
+
+`%LOCALAPPDATA%\Luma` contains the catalog, settings and thumbnails on the PC. Original files stay on their source volumes. Default thumbnail limit: 2 GiB. Offline thumbnail retention depends on cache capacity. Unvisited media may not yet have cached thumbnails.
+
+## Build and test
+
+On Windows with .NET 8 SDK and Windows build tools (Visual Studio's Windows application development workload):
 
 ```powershell
 dotnet test tests/Luma.Tests/Luma.Tests.csproj -c Release
 dotnet test tests/Luma.Windows.Tests/Luma.Windows.Tests.csproj -c Release
+dotnet publish src/Luma.App/Luma.App.csproj -c Release -r win-x64 -p:Platform=x64 -o artifacts/Luma-win-x64
+./scripts/Smoke-Test.ps1 -Executable artifacts/Luma-win-x64/Luma.App.exe
 ```
 
-See [external-drive behavior](docs/EXTERNAL_DRIVES.md) and [QA coverage](docs/QA.md).
+Core tests also run on Linux. GitHub Actions builds the app, runs Windows integration tests, verifies its native window and uploads build/test evidence. See the specific workflow result before treating a binary as validated.
 
-## Remaining work
-
-Native WinUI interface, source-management settings, virtualized/paged browsing, capture-date extraction, tags/favorites, Windows shell file operations, source watchers, safe stale-entry reconciliation, and packaging. Physical unplug/replug and real photo/video codec QA must pass before a release. There is no installer yet.
+[Phase 1 scope and limits](docs/PHASE_1.md) · [External-drive design](docs/EXTERNAL_DRIVES.md) · [QA](docs/QA.md)

@@ -125,6 +125,12 @@ public sealed class CacheTests : IDisposable
         Assert.Null(await cache.ReadAsync(ThumbnailCache.Key(media)));
     }
 
+    [Fact] public void VolumeRootAcceptsRelativePaths()
+    {
+        var volumeRoot = Path.GetPathRoot(root)!;
+        Assert.Equal(Path.Combine(volumeRoot, "sample.jpg"), SourcePaths.Combine(volumeRoot, "sample.jpg"));
+    }
+
     [Fact] public void SourcePathCannotEscapeRoot() => Assert.Throws<ArgumentException>(() => SourcePaths.Combine(root, "../outside.jpg"));
 
     [Fact] public async Task CatalogPersistsOfflineAndResolvesNewMount()
@@ -186,6 +192,31 @@ public sealed class CacheTests : IDisposable
         File.Delete(path); await catalog.ScanAsync("source", source);
         Assert.Empty(await catalog.ListAsync("source"));
     }
+
+    [Fact] public async Task InFlightCancellationRollsBackPartialScan()
+    {
+        var source = Path.Combine(root, "drive"); Directory.CreateDirectory(source);
+        await File.WriteAllBytesAsync(Path.Combine(source, "existing.jpg"), new byte[4]);
+        var catalog = new MediaCache(Path.Combine(root, "catalog.db")); await catalog.InitializeAsync(); await catalog.ScanAsync("source", source);
+        for (int i = 0; i < 120; i++) File.WriteAllBytes(Path.Combine(source, $"new{i}.jpg"), new byte[1]);
+        using var cancelled = new CancellationTokenSource();
+        await Assert.ThrowsAnyAsync<OperationCanceledException>(() => catalog.ScanAsync("source", source, cancelled.Token,
+            new CallbackProgress(_ => cancelled.Cancel())));
+        Assert.Single(await catalog.ListAsync("source"));
+    }
+
+    [Fact] public async Task LostIdentityDuringScanRollsBackPartialCatalog()
+    {
+        var source = Path.Combine(root, "drive"); Directory.CreateDirectory(source);
+        await File.WriteAllBytesAsync(Path.Combine(source, "existing.jpg"), new byte[4]);
+        var resolver = new Resolver { Root = source };
+        var catalog = new MediaCache(Path.Combine(root, "catalog.db"), resolver); await catalog.InitializeAsync(); await catalog.ScanAsync("source", source);
+        for (int i = 0; i < 120; i++) File.WriteAllBytes(Path.Combine(source, $"new{i}.jpg"), new byte[1]);
+        await Assert.ThrowsAsync<IOException>(() => catalog.ScanAsync("source", source, progress: new CallbackProgress(_ => resolver.Root = null)));
+        Assert.Single(await catalog.ListAsync("source"));
+    }
+
+    private sealed class CallbackProgress(Action<int> callback) : IProgress<int> { public void Report(int value) => callback(value); }
 
     private sealed class Resolver : ISourceResolver
     {

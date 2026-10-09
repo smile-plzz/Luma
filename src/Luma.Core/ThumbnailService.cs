@@ -57,7 +57,8 @@ public static class SourcePaths
     {
         if (string.IsNullOrWhiteSpace(relativePath) || Path.IsPathRooted(relativePath))
             throw new ArgumentException("A relative media path is required.", nameof(relativePath));
-        var prefix = Path.TrimEndingDirectorySeparator(Path.GetFullPath(root)) + Path.DirectorySeparatorChar;
+        var prefix = Path.GetFullPath(root);
+        if (!Path.EndsInDirectorySeparator(prefix)) prefix += Path.DirectorySeparatorChar;
         var result = Path.GetFullPath(Path.Combine(prefix, relativePath));
         if (!result.StartsWith(prefix, OperatingSystem.IsWindows() ? StringComparison.OrdinalIgnoreCase : StringComparison.Ordinal))
             throw new ArgumentException("Path escapes the registered source.", nameof(relativePath));

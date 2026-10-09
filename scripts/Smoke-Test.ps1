@@ -31,6 +31,12 @@ try {
     $bitmap.Save((Join-Path (Get-Location) 'artifacts/qa/startup.png'))
     $graphics.Dispose(); $bitmap.Dispose()
     'PASS: native window and required accessible controls are available.' | Set-Content artifacts/qa/result.txt
+} catch {
+    $log = Join-Path (Split-Path $exe) 'startup-error.txt'
+    if (Test-Path $log) { Get-Content $log; Copy-Item $log artifacts/qa/startup-error.txt }
+    Get-WinEvent -FilterHashtable @{LogName='Application'; StartTime=(Get-Date).AddMinutes(-5)} -ErrorAction SilentlyContinue |
+        Where-Object { $_.Message -match 'Luma|Microsoft.UI.Xaml' } | Select-Object -First 5 -ExpandProperty Message | Set-Content artifacts/qa/windows-events.txt
+    throw
 } finally {
     if (!$process.HasExited) { $process.CloseMainWindow() | Out-Null; if (!$process.WaitForExit(5000)) { $process.Kill() } }
 }
