@@ -16,7 +16,7 @@ public sealed class WindowsSourceResolver : ISourceResolver
 
     public WindowsSource Register(string folder)
     {
-        folder = Path.GetFullPath(folder);
+        folder = Path.TrimEndingDirectorySeparator(Path.GetFullPath(folder));
         if (!Directory.Exists(folder)) throw new DirectoryNotFoundException(folder);
         if (folder.StartsWith(@"\\")) throw new NotSupportedException("Choose a local or removable volume, not a network share.");
         var mount = new StringBuilder(32768);
@@ -49,12 +49,23 @@ public sealed class WindowsSourceResolver : ISourceResolver
                 || !identity.Volume.EndsWith(@"}\", StringComparison.Ordinal) || identity.Volume.Length != 49 ||
                 !Guid.TryParse(identity.Volume[11..^2], out _) ||
                 !TrySerial(identity.Volume, out var serial) || serial != identity.Serial) return null;
-            var root = identity.Folder == "." ? identity.Volume : SourcePaths.Combine(identity.Volume, identity.Folder);
-            return Directory.Exists(root) ? root : null;
+            // Resolve the current mount dynamically: Shell/WinRT APIs do not consistently accept volume-GUID paths.
+            var paths = new char[32768];
+            if (!GetVolumePathNamesForVolumeName(identity.Volume, paths, (uint)paths.Length, out _)) return null;
+            foreach (var mount in new string(paths).Split('\0', StringSplitOptions.RemoveEmptyEntries))
+            {
+                var root = identity.Folder == "." ? mount : SourcePaths.Combine(mount, identity.Folder);
+                if (Directory.Exists(root)) return Path.TrimEndingDirectorySeparator(root);
+            }
+            return null;
         }
         catch (Exception e) when (e is FormatException or JsonException or ArgumentException or IOException or UnauthorizedAccessException)
         { return null; }
     }
+
+    [DllImport("kernel32.dll", CharSet = CharSet.Unicode, SetLastError = true)]
+    [return: MarshalAs(UnmanagedType.Bool)]
+    private static extern bool GetVolumePathNamesForVolumeName(string volumeName, [Out] char[] paths, uint length, out uint required);
 
     private static bool TrySerial(string root, out uint serial) =>
         GetVolumeInformation(root, null, 0, out serial, out _, out _, null, 0);

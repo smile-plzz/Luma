@@ -156,6 +156,37 @@ public sealed class CacheTests : IDisposable
         Assert.Single(await catalog.ListAsync("volume-one"));
     }
 
+    [Fact] public async Task QueriesPageFilterAndPersistAnnotations()
+    {
+        var source = Path.Combine(root, "drive"); Directory.CreateDirectory(source);
+        for (int i = 0; i < 5; i++) await File.WriteAllBytesAsync(Path.Combine(source, $"photo{i}.jpg"), new byte[i + 1]);
+        await File.WriteAllBytesAsync(Path.Combine(source, "clip.mp4"), new byte[4]);
+        await File.WriteAllBytesAsync(Path.Combine(source, "100%.jpg"), new byte[4]);
+        var catalog = new MediaCache(Path.Combine(root, "catalog.db")); await catalog.InitializeAsync(); await catalog.ScanAsync("source", source);
+        var page = await catalog.QueryAsync(new(Limit: 2, Sort: MediaSort.Name));
+        Assert.Equal(7, page.Total); Assert.Equal(2, page.Items.Count);
+        Assert.NotEqual(page.Items[0].Media.RelativePath, (await catalog.QueryAsync(new(Offset: 2, Limit: 2, Sort: MediaSort.Name))).Items[0].Media.RelativePath);
+        Assert.Single((await catalog.QueryAsync(new(Kind: "video"))).Items);
+        Assert.Single((await catalog.QueryAsync(new(Search: "%"))).Items);
+        var media = page.Items[0].Media;
+        await catalog.AnnotateAsync(media, true, "Family, family, Travel");
+        var favorite = Assert.Single((await catalog.QueryAsync(new(FavoritesOnly: true))).Items);
+        Assert.Equal("Family, Travel", favorite.Tags);
+        Assert.Single((await catalog.QueryAsync(new(Search: "Travel"))).Items);
+        Assert.Single(await catalog.SourcesAsync());
+        await catalog.RemoveSourceAsync("source"); Assert.Empty((await catalog.QueryAsync(new())).Items);
+        Assert.True(File.Exists(Path.Combine(source, "clip.mp4")));
+    }
+
+    [Fact] public async Task CompletedScanReconcilesDeletedOriginals()
+    {
+        var source = Path.Combine(root, "drive"); Directory.CreateDirectory(source);
+        var path = Path.Combine(source, "a.jpg"); await File.WriteAllBytesAsync(path, new byte[4]);
+        var catalog = new MediaCache(Path.Combine(root, "catalog.db")); await catalog.InitializeAsync(); await catalog.ScanAsync("source", source);
+        File.Delete(path); await catalog.ScanAsync("source", source);
+        Assert.Empty(await catalog.ListAsync("source"));
+    }
+
     private sealed class Resolver : ISourceResolver
     {
         public string? Root; public bool ThrowOnResolve;

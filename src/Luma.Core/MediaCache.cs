@@ -8,7 +8,7 @@ public sealed record CachedMedia(string SourceId, string RelativePath, long Leng
 public sealed record SourceInfo(string Id, string RootPath, DateTime LastSeenUtc, bool IsOnline);
 
 /// <summary>Persistent metadata for removable media. Database lives on the PC, never on the drive.</summary>
-public sealed class MediaCache(string databasePath, ISourceResolver? sourceResolver = null)
+public sealed partial class MediaCache(string databasePath, ISourceResolver? sourceResolver = null)
 {
     private readonly string connectionString = new SqliteConnectionStringBuilder { DataSource = databasePath }.ToString();
     public async Task InitializeAsync(CancellationToken ct = default)
@@ -25,12 +25,14 @@ public sealed class MediaCache(string databasePath, ISourceResolver? sourceResol
                 PRIMARY KEY(source_id, relative_path),
                 FOREIGN KEY(source_id) REFERENCES sources(id));
             CREATE INDEX IF NOT EXISTS ix_media_source ON media(source_id);
+            CREATE TABLE IF NOT EXISTS annotations(source_id TEXT NOT NULL, relative_path TEXT NOT NULL,
+                favorite INTEGER NOT NULL DEFAULT 0, tags TEXT NOT NULL DEFAULT '', PRIMARY KEY(source_id,relative_path));
             """;
         await cmd.ExecuteNonQueryAsync(ct);
     }
 
     // Caller supplies a durable source ID (e.g. volume GUID), not a mutable drive letter.
-    public async Task<int> ScanAsync(string sourceId, string root, CancellationToken ct = default)
+    public async Task<int> ScanAsync(string sourceId, string root, CancellationToken ct = default, IProgress<int>? progress = null)
     {
         if (string.IsNullOrWhiteSpace(sourceId)) throw new ArgumentException("Source ID required", nameof(sourceId));
         if (sourceResolver is not null)
@@ -49,6 +51,13 @@ public sealed class MediaCache(string databasePath, ISourceResolver? sourceResol
             source.Parameters.AddWithValue("$seen", DateTime.UtcNow.ToString("O"));
             await source.ExecuteNonQueryAsync(ct);
         }
+        await using (var seen = db.CreateCommand())
+        {
+            seen.Transaction = (SqliteTransaction)transaction;
+            seen.CommandText = "CREATE TEMP TABLE scanned(path TEXT PRIMARY KEY)";
+            await seen.ExecuteNonQueryAsync(ct);
+        }
+        bool complete = true;
         int count = 0;
         var pending = new Stack<string>();
         pending.Push(root);
@@ -61,7 +70,7 @@ public sealed class MediaCache(string databasePath, ISourceResolver? sourceResol
                 foreach (var sub in Directory.EnumerateDirectories(dir))
                 {
                     try { if (!new DirectoryInfo(sub).Attributes.HasFlag(FileAttributes.ReparsePoint)) pending.Push(sub); }
-                    catch (IOException) { } catch (UnauthorizedAccessException) { }
+                    catch (IOException) { complete = false; } catch (UnauthorizedAccessException) { complete = false; }
                 }
                 foreach (var file in Directory.EnumerateFiles(dir))
                 {
@@ -85,19 +94,34 @@ public sealed class MediaCache(string databasePath, ISourceResolver? sourceResol
                         cmd.Parameters.AddWithValue("$ticks", info.LastWriteTimeUtc.Ticks);
                         cmd.Parameters.AddWithValue("$kind", Videos.Contains(ext) ? "video" : "photo");
                         await cmd.ExecuteNonQueryAsync(ct);
+                        await using var seen = db.CreateCommand();
+                        seen.Transaction = (SqliteTransaction)transaction;
+                        seen.CommandText = "INSERT OR IGNORE INTO scanned VALUES($path)";
+                        seen.Parameters.AddWithValue("$path", Path.GetRelativePath(root, info.FullName));
+                        await seen.ExecuteNonQueryAsync(ct);
                         count++;
+                        if (count % 100 == 0) progress?.Report(count);
                     }
-                    catch (IOException) { } catch (UnauthorizedAccessException) { }
+                    catch (IOException) { complete = false; } catch (UnauthorizedAccessException) { complete = false; }
                 }
             }
-            catch (IOException) { } catch (UnauthorizedAccessException) { }
+            catch (IOException) { complete = false; } catch (UnauthorizedAccessException) { complete = false; }
         }
         ct.ThrowIfCancellationRequested();
         if (!Directory.Exists(root) || (sourceResolver is not null &&
             !string.Equals(sourceResolver.ResolveRoot(sourceId), root, OperatingSystem.IsWindows() ?
                 StringComparison.OrdinalIgnoreCase : StringComparison.Ordinal)))
             throw new IOException("Source disconnected or changed during scan.");
+        if (complete)
+        {
+            await using var reconcile = db.CreateCommand();
+            reconcile.Transaction = (SqliteTransaction)transaction;
+            reconcile.CommandText = "DELETE FROM media WHERE source_id=$id AND relative_path NOT IN (SELECT path FROM scanned)";
+            reconcile.Parameters.AddWithValue("$id", sourceId);
+            await reconcile.ExecuteNonQueryAsync(ct);
+        }
         await transaction.CommitAsync(ct);
+        progress?.Report(count);
         return count;
     }
 

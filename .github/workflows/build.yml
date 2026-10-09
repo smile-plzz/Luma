@@ -32,3 +32,25 @@ jobs:
         with:
           name: windows-results
           path: tests/Luma.Windows.Tests/TestResults/*.trx
+  desktop:
+    runs-on: windows-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: '8.0.x'
+      - name: Publish self-contained Windows app
+        run: dotnet publish src/Luma.App/Luma.App.csproj -c Release -r win-x64 -p:Platform=x64 -o artifacts/Luma-win-x64
+      - name: Launch and verify desktop window
+        shell: pwsh
+        run: ./scripts/Smoke-Test.ps1 -Executable artifacts/Luma-win-x64/Luma.App.exe
+      - uses: actions/upload-artifact@v4
+        with:
+          name: Luma-Phase1-win-x64
+          path: artifacts/Luma-win-x64/
+          if-no-files-found: error
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: desktop-smoke-evidence
+          path: artifacts/qa/
