@@ -23,7 +23,9 @@ public sealed partial class MainWindow : Window
     private ThumbnailCache? cache;
     private ThumbnailService? thumbnails;
     private CancellationTokenSource? queryCancellation, scanCancellation, searchCancellation;
-    private Task thumbnailTask = Task.CompletedTask;
+    private readonly HashSet<Task> cacheTasks = new();
+    private CancellationTokenSource? preparationCancellation;
+    private bool preparing, clearing;
     private bool ready, scanning, operation;
     private string sourceSignature = "";
     private int offset;
@@ -62,9 +64,10 @@ public sealed partial class MainWindow : Window
     private async Task SeedSmokeFixtures()
     {
         var folder = Path.Combine(AppSettings.LocalRoot, "Fixture originals"); Directory.CreateDirectory(folder);
+        Directory.CreateDirectory(Path.Combine(folder, "Trips"));
         for (int index = 0; index < 8; index++)
         {
-            using var writer = new BinaryWriter(File.Create(Path.Combine(folder, $"fixture{index:00}.bmp")));
+            using var writer = new BinaryWriter(File.Create(Path.Combine(index == 7 ? Path.Combine(folder, "Trips") : folder, $"fixture{index:00}.bmp")));
             writer.Write((ushort)0x4D42); writer.Write(54 + 256 * 256 * 3); writer.Write(0); writer.Write(54);
             writer.Write(40); writer.Write(256); writer.Write(256); writer.Write((ushort)1); writer.Write((ushort)24);
             writer.Write(0); writer.Write(256 * 256 * 3); writer.Write(0); writer.Write(0); writer.Write(0); writer.Write(0);
@@ -77,8 +80,8 @@ public sealed partial class MainWindow : Window
 
     private async void OnClosed(object sender, WindowEventArgs args)
     {
-        ready = false; availabilityTimer.Stop(); scanCancellation?.Cancel(); queryCancellation?.Cancel(); searchCancellation?.Cancel();
-        try { await thumbnailTask; } catch (OperationCanceledException) { }
+        ready = false; availabilityTimer.Stop(); scanCancellation?.Cancel(); queryCancellation?.Cancel(); searchCancellation?.Cancel(); preparationCancellation?.Cancel();
+        try { await Task.WhenAll(cacheTasks.ToArray()); } catch (Exception) { /* Pending work must finish before releasing cache ownership. */ }
         cache?.Dispose();
     }
     private async Task Guard(Func<Task> action, bool exclusive = false)
@@ -129,18 +132,20 @@ public sealed partial class MainWindow : Window
             EmptyText.Text = "Add a source, rescan, or adjust your search and filters. Cached media remains browsable when a drive is offline.";
             PreviousButton.IsEnabled = offset > 0; NextButton.IsEnabled = offset + 120 < total;
             PageText.Text = $"{offset / 120 + 1} / {Math.Max(1, (total + 119) / 120)}";
-            if (!scanning) Status.Text = $"{total:N0} items · {cards.Count:N0} on this page";
-            thumbnailTask = LoadThumbnails(cards, ct); await thumbnailTask;
+            if (!scanning && !preparing) Status.Text = $"{total:N0} items · {cards.Count:N0} on this page";
+            await LoadFolders(ct);
+            await LoadThumbnails(cards, ct);
         }
         catch (OperationCanceledException) { }
-        finally { if (queryCancellation == cts) Busy.IsActive = scanning; }
+        finally { if (queryCancellation == cts) Busy.IsActive = scanning || preparing; }
     }
     private async Task LoadThumbnails(IEnumerable<MediaCard> items, CancellationToken ct)
     {
         foreach (var card in items)
         {
             ct.ThrowIfCancellationRequested();
-            var bytes = await Task.Run(() => thumbnails!.GetAsync(card.Item.Media, 256, ct), ct);
+            if (clearing) return;
+            var bytes = await UseCache(() => thumbnails!.GetAsync(card.Item.Media, 256, ct));
             if (bytes is null) continue;
             ct.ThrowIfCancellationRequested();
             try
@@ -158,7 +163,12 @@ public sealed partial class MainWindow : Window
         if (Navigation.SelectedIndex == 1) SortBox.SelectedIndex = 0;
         offset = 0; await Guard(Refresh);
     }
-    private async void FilterChanged(object sender, SelectionChangedEventArgs e) { if (ready) { offset = 0; await Guard(Refresh); } }
+    private async void FilterChanged(object sender, SelectionChangedEventArgs e)
+    {
+        if (!ready) return;
+        if (ReferenceEquals(sender, Sources)) { FolderFilter.Text = ""; CoverageText.Text = "Check coverage before disconnecting a drive."; }
+        offset = 0; await Guard(Refresh);
+    }
     private async void SearchChanged(object sender, TextChangedEventArgs e)
     {
         if (!ready) return; searchCancellation?.Cancel(); var cts = new CancellationTokenSource(); searchCancellation = cts;
@@ -204,7 +214,7 @@ public sealed partial class MainWindow : Window
             await LoadSources(); offset = 0; await Refresh();
         }
     }
-    private void CancelScan(object sender, RoutedEventArgs e) => scanCancellation?.Cancel();
+    private void CancelScan(object sender, RoutedEventArgs e) { scanCancellation?.Cancel(); preparationCancellation?.Cancel(); }
     private async void RemoveSource(object sender, RoutedEventArgs e) => await Guard(async () =>
     {
         if (scanning) return; var id = SelectedSource; if (id is null) { Notify("Select a single source first."); return; }
@@ -265,7 +275,7 @@ public sealed partial class MainWindow : Window
         if (scanning) { Notify("Wait for indexing to finish before moving files."); return; }
         var data = Clipboard.GetContent(); if (!data.Contains(StandardDataFormats.StorageItems)) { Notify("Copy or cut files first."); return; }
         var items = await data.GetStorageItemsAsync();
-        if (items.Any(i => i is not StorageFile)) throw new NotSupportedException("Phase 1 pastes files only. Use Explorer to move folders.");
+        if (items.Any(i => i is not StorageFile)) throw new NotSupportedException("Luma pastes files only. Use Explorer to move folders.");
         var destination = await PickFolder(); if (destination is null) return;
         var paths = items.Select(i => i.Path).ToArray();
         if (data.Contains("Luma.FileSelection.v1"))

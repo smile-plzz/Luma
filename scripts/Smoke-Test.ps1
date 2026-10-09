@@ -58,13 +58,40 @@ try {
     (Wait-Control 'All media').GetCurrentPattern([System.Windows.Automation.SelectionItemPattern]::Pattern).Select()
     Start-Sleep -Seconds 2
     Wait-Control 'fixture00.bmp' | Out-Null
+    # Select the registered fixture source; folder navigation uses saved catalog data.
+    (Wait-Control 'Source filter').GetCurrentPattern([System.Windows.Automation.ExpandCollapsePattern]::Pattern).Expand()
+    Start-Sleep -Milliseconds 500
+    $nodes = $window.FindAll([System.Windows.Automation.TreeScope]::Descendants,[System.Windows.Automation.Condition]::TrueCondition)
+    $sourceItem = $nodes | Where-Object { $_.Current.Name -like '*Fixture originals' } | Select-Object -First 1
+    if (!$sourceItem) { throw 'Fixture source choice was not found.' }
+    $sourceItem.GetCurrentPattern([System.Windows.Automation.SelectionItemPattern]::Pattern).Select()
+    $folder = Wait-Control 'Trips'
+    $folderPattern = $null
+    while ($folder -and !$folder.TryGetCurrentPattern([System.Windows.Automation.SelectionItemPattern]::Pattern,[ref]$folderPattern)) {
+        $folder = [System.Windows.Automation.TreeWalker]::ControlViewWalker.GetParent($folder)
+    }
+    if (!$folder) { throw 'Cached folder cannot be selected.' }
+    $folderPattern.Select()
+    Start-Sleep -Seconds 2
+    Wait-Control 'fixture07.bmp' | Out-Null
+    if (Find-Control 'fixture00.bmp') { throw 'Folder navigation did not filter the library.' }
+    (Wait-Control 'Up to parent folder').GetCurrentPattern([System.Windows.Automation.InvokePattern]::Pattern).Invoke()
+    Wait-Control 'fixture00.bmp' | Out-Null
+    (Wait-Control 'Prepare offline previews').GetCurrentPattern([System.Windows.Automation.InvokePattern]::Pattern).Invoke()
+    for ($j = 0; $j -lt 60; $j++) {
+        $nodes = $window.FindAll([System.Windows.Automation.TreeScope]::Descendants,[System.Windows.Automation.Condition]::TrueCondition)
+        $coverage = $nodes | Where-Object { $_.Current.Name -like '8 / 8 previews saved*' } | Select-Object -First 1
+        if ($coverage) { break }; Start-Sleep -Milliseconds 500
+    }
+    if (!$coverage) { throw 'Offline preparation did not report full fixture coverage.' }
+    $coverage.Current.Name | Set-Content artifacts/qa/offline-coverage.txt
     $rectangle = $window.Current.BoundingRectangle
     $bitmap = [System.Drawing.Bitmap]::new([int]$rectangle.Width,[int]$rectangle.Height)
     $graphics = [System.Drawing.Graphics]::FromImage($bitmap)
     $graphics.CopyFromScreen([int]$rectangle.X,[int]$rectangle.Y,0,0,$bitmap.Size)
     $bitmap.Save((Join-Path (Get-Location) 'artifacts/qa/startup.png'))
     $graphics.Dispose(); $bitmap.Dispose()
-    'PASS: native window, indexed fixture grid, search, selection and favorites work through Windows UI Automation.' | Set-Content artifacts/qa/result.txt
+    'PASS: native window, indexed fixture grid, search, selection, favorites, cached folder navigation and offline preparation work through Windows UI Automation.' | Set-Content artifacts/qa/result.txt
 } catch {
     $log = Join-Path (Split-Path $exe) 'startup-error.txt'
     if (Test-Path $log) { Get-Content $log; Copy-Item $log artifacts/qa/startup-error.txt }

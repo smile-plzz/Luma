@@ -18,7 +18,9 @@ Phase 1 delivers a Windows desktop app that can index existing folders/drives, b
 | Cache | PC-local metadata/thumbnails; cache-first browsing, bounded LRU, crash-safe writes, configured limit and changed-drive-letter resolution |
 | Delivery | Self-contained Windows x64 build artifact, core tests, Windows integration tests, native-window smoke check |
 
-## Defined limits
+Phase 1 is the baseline milestone. See [Phase 2](PHASE_2.md) for offline preparation and cached folder navigation added afterward.
+
+## Defined limits (at Phase 1)
 
 - Windows 10 2004+ or Windows 11, x64. Not a macOS/Linux app. No signing certificate or installer in Phase 1.
 - Dates currently use file modification time. EXIF capture dates/dimensions, geolocation, albums, drag-and-drop, tree-style folder navigation, thumbnail-size controls and richer undo/history are follow-up features.

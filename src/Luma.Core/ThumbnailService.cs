@@ -16,7 +16,7 @@ public sealed class ThumbnailService(ThumbnailCache cache, ISourceResolver sourc
     // Bound native decoder work and coalesce requests by rechecking after entry.
     private readonly SemaphoreSlim generationGate = new(1, 1);
 
-    public async Task<byte[]?> GetAsync(CachedMedia media, int pixels = 256, CancellationToken ct = default)
+    public async Task<byte[]?> GetAsync(CachedMedia media, int pixels = 256, CancellationToken ct = default, bool allowEviction = true)
     {
         var key = ThumbnailCache.Key(media, pixels);
         var cached = await cache.ReadAsync(key, ct);
@@ -35,7 +35,8 @@ public sealed class ThumbnailService(ThumbnailCache cache, ISourceResolver sourc
                 var bytes = await generator.GenerateAsync(path, pixels, ct);
                 // An unplug, overwrite, or mount change during generation must not poison the cache.
                 if (bytes is null || bytes.Length == 0 || bytes.Length > cache.MaxEntryBytes || sources.ResolveRoot(media.SourceId) != root || !Matches(path, media)) return null;
-                await cache.StoreAsync(key, bytes, ct);
+                if (allowEviction) await cache.StoreAsync(key, bytes, ct);
+                else if (!await cache.TryStoreWithoutEvictionAsync(key, bytes, ct)) return null;
                 return bytes;
             }
             catch (IOException) { return null; }

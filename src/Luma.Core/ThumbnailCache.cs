@@ -70,6 +70,13 @@ public sealed class ThumbnailCache : IDisposable
     }
 
     public async Task StoreAsync(string key, ReadOnlyMemory<byte> bytes, CancellationToken ct = default)
+        => await WriteAsync(key, bytes, true, ct);
+
+    // Bulk preparation must not evict thumbnails belonging to a disconnected source.
+    public Task<bool> TryStoreWithoutEvictionAsync(string key, ReadOnlyMemory<byte> bytes, CancellationToken ct = default)
+        => WriteAsync(key, bytes, false, ct);
+
+    private async Task<bool> WriteAsync(string key, ReadOnlyMemory<byte> bytes, bool evict, CancellationToken ct)
     {
         var path = EntryPath(key);
         if (bytes.Length == 0 || bytes.Length > maxEntryBytes)
@@ -78,6 +85,8 @@ public sealed class ThumbnailCache : IDisposable
         var temporary = Path.Combine(directory, $"{Guid.NewGuid():N}.tmp");
         try
         {
+            var previousLength = entries.TryGetValue(path, out var previous) ? previous.Length : 0;
+            if (!evict && retainedBytes - previousLength + bytes.Length > maxBytes) return false;
             await using (var output = new FileStream(temporary, FileMode.CreateNew, FileAccess.Write,
                 FileShare.None, 81920, FileOptions.Asynchronous))
             {
@@ -91,12 +100,44 @@ public sealed class ThumbnailCache : IDisposable
             File.SetLastWriteTimeUtc(path, accessed);
             Track(path, bytes.Length, accessed);
             Trim();
+            return true;
         }
         finally
         {
             try { if (File.Exists(temporary)) File.Delete(temporary); }
             finally { gate.Release(); }
         }
+    }
+
+    public async Task<ThumbnailCacheSnapshot> SnapshotAsync(CancellationToken ct = default)
+    {
+        await gate.WaitAsync(ct);
+        try
+        {
+            foreach (var entry in entries.Values.ToArray())
+            {
+                ct.ThrowIfCancellationRequested();
+                var file = new FileInfo(entry.Path);
+                if (!file.Exists || file.Length == 0 || file.Length > maxEntryBytes) Forget(entry.Path);
+                else if (file.Length != entry.Length) Track(entry.Path, file.Length, file.LastWriteTimeUtc);
+            }
+            return new(entries.Keys.Select(Path.GetFileNameWithoutExtension).OfType<string>().ToHashSet(StringComparer.Ordinal), retainedBytes, maxBytes);
+        }
+        finally { gate.Release(); }
+    }
+
+    public async Task ClearAsync(CancellationToken ct = default)
+    {
+        await gate.WaitAsync(ct);
+        try
+        {
+            foreach (var path in entries.Keys.ToArray())
+            {
+                ct.ThrowIfCancellationRequested();
+                File.Delete(path); Forget(path);
+            }
+        }
+        finally { gate.Release(); }
     }
 
     private string EntryPath(string key)
@@ -134,3 +175,5 @@ public sealed class ThumbnailCache : IDisposable
 
     public void Dispose() { ownership.Dispose(); gate.Dispose(); }
 }
+
+public sealed record ThumbnailCacheSnapshot(IReadOnlySet<string> Keys, long Bytes, long LimitBytes);

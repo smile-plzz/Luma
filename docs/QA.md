@@ -21,12 +21,18 @@ These tests use small fixtures. They do not establish UI responsiveness or 100,0
 
 ## Validation
 
-The suite contains 20 core tests (run on both Windows and Linux) and 2 Windows integration tests. It covers cache restart/eviction/concurrency, offline behavior, identity resolution, Unicode source folders, changed serial rejection, real bitmap decoding, catalog paging/search/annotations, completed-scan reconciliation and transaction rollback during cancellation/disconnect.
+The suite contains 26 core tests (run on both Windows and Linux) and 2 Windows integration tests. It covers cache restart/eviction/concurrency, offline behavior, identity resolution, Unicode source folders, changed serial rejection, real bitmap decoding, catalog paging/search/annotations, completed-scan reconciliation and transaction rollback during cancellation/disconnect.
 
-The desktop pipeline publishes the self-contained x64 folder and launches it on Windows. Its UI Automation smoke test uses an isolated temporary catalog with synthetic BMP files to exercise the populated grid, search, selection and favorite filtering. It records a screenshot and accessible-control evidence. It never touches a user's normal Luma catalog.
+The desktop pipeline publishes the self-contained x64 folder and launches it on Windows. Its UI Automation smoke test uses an isolated temporary catalog with synthetic BMP files to exercise the populated grid, search, selection and favorite filtering, cached folder navigation, and offline preparation with full fixture coverage. It records a screenshot and accessible-control evidence. It never touches a user's normal Luma catalog.
 
 Consult the latest run linked from the pull request for the result of the exact commit being downloaded. Windows/Linux core tests and Windows integration have passed during this change; the desktop packaging and smoke check are required gates for the downloadable artifact. The Linux development container cannot execute the full .NET test runner due to process-information failures, so CI is the execution source of truth. Physical USB and native destructive-operation QA remain separate acceptance checks.
 
 ## Verified Phase 1 run
 
 [Run 37933213641](https://github.com/smile-plzz/Luma/actions/runs/37933213641), commit `790c8625a364054511a72d09c9ba2ea4a516d785`: all jobs passed. 20 core tests pass on each of Windows and Linux; both Windows integration tests pass; the self-contained desktop build and populated-library UI Automation smoke test pass. The `Luma-Phase1-win-x64` ZIP and desktop screenshot/control evidence are attached to that run.
+
+## Phase 2 coverage and acceptance
+
+Six additional core regressions cover catalog-only folder discovery with literal `%`/`_` names, cancellation/resume and restart with no drive probes, partial coverage under a full cache without evicting another source, stale/missing-key coverage, cache clearing without changing originals or annotations, and offline misses without decoding. Native UI smoke selects a source, enters its cached `Trips` folder, returns to the parent, prepares all eight previews and asserts `8 / 8` coverage.
+
+Before a general release, manually prepare a multi-page removable source, cancel/resume, disconnect it, restart Luma and check coverage. Repeat with insufficient cache space and another offline source already cached. Confirm that preparation does not evict that source, ordinary browsing may evict it, and the confirmation for clearing previews clearly affects all sources. Closing the app mid-preparation must allow the next launch to obtain cache ownership. Verify large catalogs and low-disk failures separately; the small-fixture CI does not certify performance or physical unplug behavior.
