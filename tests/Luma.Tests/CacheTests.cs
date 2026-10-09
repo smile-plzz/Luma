@@ -216,6 +216,124 @@ public sealed class CacheTests : IDisposable
         Assert.Single(await catalog.ListAsync("source"));
     }
 
+    [Fact] public async Task FolderNavigationUsesOnlyCatalogAndPreservesLiteralNames()
+    {
+        var source = Path.Combine(root, "drive");
+        Directory.CreateDirectory(Path.Combine(source, "100%_done", "nested"));
+        Directory.CreateDirectory(Path.Combine(source, "other"));
+        File.WriteAllBytes(Path.Combine(source, "100%_done", "a.jpg"), new byte[4]);
+        File.WriteAllBytes(Path.Combine(source, "100%_done", "nested", "b.jpg"), new byte[4]);
+        File.WriteAllBytes(Path.Combine(source, "other", "c.jpg"), new byte[4]);
+        var resolver = new Resolver { Root = source };
+        var catalog = new MediaCache(Path.Combine(root, "catalog.db"), resolver);
+        await catalog.InitializeAsync(); await catalog.ScanAsync("source", source);
+        resolver.ThrowOnResolve = true; Directory.Delete(source, true);
+        var folders = await catalog.FoldersAsync("source");
+        Assert.Equal(2, folders.Count); Assert.Equal("100%_done", folders[0].Name); Assert.Equal(2, folders[0].MediaCount);
+        var nested = Assert.Single(await catalog.FoldersAsync("source", "100%_done"));
+        Assert.Equal(Path.Combine("100%_done", "nested"), nested.RelativePath);
+        Assert.Empty(await catalog.FoldersAsync("source", nested.RelativePath));
+        Assert.Empty(await catalog.FoldersAsync("another"));
+    }
+
+    [Fact] public async Task PreparationResumesAfterCancellationAndSurvivesRestartOffline()
+    {
+        var source = Path.Combine(root, "drive"); Directory.CreateDirectory(source);
+        for (int i = 0; i < 3; i++) File.WriteAllBytes(Path.Combine(source, $"{i}.jpg"), new byte[4]);
+        var resolver = new Resolver { Root = source }; var generator = new Generator();
+        var catalog = new MediaCache(Path.Combine(root, "catalog.db"), resolver);
+        await catalog.InitializeAsync(); await catalog.ScanAsync("source", source);
+        using (var cache = new ThumbnailCache(CachePath))
+        {
+            var preparation = new OfflinePreparation(catalog, cache, new(cache, resolver, generator));
+            using var cancelled = new CancellationTokenSource();
+            await Assert.ThrowsAnyAsync<OperationCanceledException>(() => preparation.PrepareAsync("source",
+                new LongProgress(_ => cancelled.Cancel()), cancelled.Token));
+            Assert.Equal(1, (await preparation.InspectAsync()).Cached);
+            Assert.Equal(3, (await preparation.PrepareAsync("source")).Cached);
+            Assert.Equal(3, generator.Calls); // The completed first preview was reused.
+        }
+        resolver.ThrowOnResolve = true; Directory.Delete(source, true);
+        using var reopened = new ThumbnailCache(CachePath);
+        var offline = new OfflinePreparation(catalog, reopened, new(reopened, resolver, generator));
+        Assert.Equal(3, (await offline.PrepareAsync("source")).Cached);
+        Assert.Equal(3, generator.Calls);
+    }
+
+    [Fact] public async Task PreparationReportsPartialCoverageWithoutEvictingExistingPreviews()
+    {
+        var source = Path.Combine(root, "drive"); Directory.CreateDirectory(source);
+        File.WriteAllBytes(Path.Combine(source, "a.jpg"), new byte[4]);
+        File.WriteAllBytes(Path.Combine(source, "b.jpg"), new byte[4]);
+        var resolver = new Resolver { Root = source };
+        var catalog = new MediaCache(Path.Combine(root, "catalog.db"), resolver);
+        await catalog.InitializeAsync(); await catalog.ScanAsync("source", source);
+        using var cache = new ThumbnailCache(CachePath, 6);
+        var otherKey = ThumbnailCache.Key(Media("unplugged.jpg")); await cache.StoreAsync(otherKey, new byte[3]);
+        var preparation = new OfflinePreparation(catalog, cache, new(cache, resolver, new Generator()));
+        var coverage = await preparation.PrepareAsync("source");
+        Assert.Equal(2, coverage.Total); Assert.Equal(1, coverage.Cached); Assert.Equal(6, coverage.CacheBytes);
+        Assert.NotNull(await cache.ReadAsync(otherKey));
+        Assert.Equal(1, (await preparation.PrepareAsync("source")).Cached);
+        Assert.NotNull(await cache.ReadAsync(otherKey));
+    }
+
+    [Fact] public async Task CoverageExcludesOldVersionsAndMissingCacheFiles()
+    {
+        var source = Path.Combine(root, "drive"); Directory.CreateDirectory(source);
+        var path = Path.Combine(source, "a.jpg"); File.WriteAllBytes(path, new byte[4]);
+        var resolver = new Resolver { Root = source };
+        var catalog = new MediaCache(Path.Combine(root, "catalog.db"), resolver);
+        await catalog.InitializeAsync(); await catalog.ScanAsync("source", source);
+        using var cache = new ThumbnailCache(CachePath);
+        var preparation = new OfflinePreparation(catalog, cache, new(cache, resolver, new Generator()));
+        Assert.Equal(1, (await preparation.PrepareAsync()).Cached);
+        File.WriteAllBytes(path, new byte[8]); await catalog.ScanAsync("source", source);
+        Assert.Equal(0, (await preparation.InspectAsync()).Cached);
+        Assert.Equal(1, (await preparation.PrepareAsync()).Cached);
+        foreach (var file in Directory.GetFiles(CachePath, "*.thumb")) File.Delete(file);
+        Assert.Equal(0, (await preparation.InspectAsync()).Cached);
+        await preparation.PrepareAsync();
+        foreach (var file in Directory.GetFiles(CachePath, "*.thumb")) File.WriteAllBytes(file, Array.Empty<byte>());
+        var coverage = await preparation.InspectAsync();
+        Assert.Equal(0, coverage.Cached); Assert.Equal(0, coverage.CacheBytes);
+        Assert.Empty(Directory.GetFiles(CachePath, "*.thumb"));
+    }
+
+    [Fact] public async Task ClearCachePreservesCatalogAnnotationsAndOriginals()
+    {
+        var source = Path.Combine(root, "drive"); Directory.CreateDirectory(source);
+        var path = Path.Combine(source, "a.jpg"); File.WriteAllBytes(path, new byte[4]);
+        var resolver = new Resolver { Root = source };
+        var catalog = new MediaCache(Path.Combine(root, "catalog.db"), resolver);
+        await catalog.InitializeAsync(); await catalog.ScanAsync("source", source);
+        var media = Assert.Single(await catalog.ListAsync("source"));
+        await catalog.AnnotateAsync(media, true, "keep");
+        using var cache = new ThumbnailCache(CachePath);
+        var preparation = new OfflinePreparation(catalog, cache, new(cache, resolver, new Generator()));
+        await preparation.PrepareAsync(); await cache.ClearAsync();
+        Assert.Empty((await cache.SnapshotAsync()).Keys); Assert.Empty(Directory.GetFiles(CachePath, "*.thumb"));
+        Assert.True(File.Exists(path));
+        var item = Assert.Single((await catalog.QueryAsync(new())).Items);
+        Assert.True(item.Favorite); Assert.Equal("keep", item.Tags);
+        Assert.Equal(1, (await preparation.PrepareAsync()).Cached);
+    }
+
+    [Fact] public async Task OfflineMissingPreviewsStayMissingWithoutGeneratorCalls()
+    {
+        var source = Path.Combine(root, "drive"); Directory.CreateDirectory(source);
+        File.WriteAllBytes(Path.Combine(source, "a.jpg"), new byte[4]);
+        var resolver = new Resolver { Root = source }; var generator = new Generator();
+        var catalog = new MediaCache(Path.Combine(root, "catalog.db"), resolver);
+        await catalog.InitializeAsync(); await catalog.ScanAsync("source", source); resolver.Root = null;
+        using var cache = new ThumbnailCache(CachePath);
+        var preparation = new OfflinePreparation(catalog, cache, new(cache, resolver, generator));
+        var coverage = await preparation.PrepareAsync();
+        Assert.Equal(1, coverage.Total); Assert.Equal(0, coverage.Cached); Assert.Equal(0, generator.Calls);
+    }
+
+    private sealed class LongProgress(Action<long> callback) : IProgress<long> { public void Report(long value) => callback(value); }
+
     private sealed class CallbackProgress(Action<int> callback) : IProgress<int> { public void Report(int value) => callback(value); }
 
     private sealed class Resolver : ISourceResolver

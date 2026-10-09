@@ -23,9 +23,17 @@
           <Button x:Name="AddSourceButton" Content="+ Add folder or drive" HorizontalAlignment="Stretch" Click="AddSource"/>
           <Button x:Name="RescanButton" Content="Rescan sources" HorizontalAlignment="Stretch" Click="Rescan"/>
           <Button Content="Remove selected source" HorizontalAlignment="Stretch" Click="RemoveSource"/>
-          <TextBox x:Name="FolderFilter" Header="Folder within source" PlaceholderText="e.g. Holidays\2025" TextChanged="SearchChanged"/>
+          <Button x:Name="PrepareButton" Content="Prepare offline previews" HorizontalAlignment="Stretch" Click="PrepareOffline"/>
+          <Button Content="Check offline coverage" HorizontalAlignment="Stretch" Click="CheckCoverage"/>
+          <TextBlock x:Name="CoverageText" Text="Check coverage before disconnecting a drive." FontSize="11" TextWrapping="Wrap" Opacity="0.7"/>
+          <TextBox x:Name="FolderFilter" Header="Folder within source" PlaceholderText="e.g. Holidays\2025" TextChanged="SearchChanged" AutomationProperties.Name="Folder path"/>
+          <Button Content="Up to parent folder" HorizontalAlignment="Stretch" Click="ParentFolder"/>
+          <TextBlock x:Name="FolderHint" Text="Select a source to browse its folders." FontSize="11" TextWrapping="Wrap" Opacity="0.7"/>
+          <ListView x:Name="FolderList" MaxHeight="160" SelectionMode="Single" SelectionChanged="FolderSelected" AutomationProperties.Name="Cached folders">
+            <ListView.ItemTemplate><DataTemplate><StackPanel Margin="0,4"><TextBlock Text="{Binding Name}" TextTrimming="CharacterEllipsis"/><TextBlock Text="{Binding MediaCount}" FontSize="10" Opacity="0.6"/></StackPanel></DataTemplate></ListView.ItemTemplate>
+          </ListView>
         </StackPanel>
-        <StackPanel Grid.Row="4" Spacing="10"><Button Content="Settings" HorizontalAlignment="Stretch" Click="Settings"/><TextBlock Text="Local files. No account needed." FontSize="11" Opacity="0.6" TextWrapping="Wrap"/></StackPanel>
+        <StackPanel Grid.Row="4" Spacing="10"><Button Content="Settings" HorizontalAlignment="Stretch" Click="Settings"/><Button Content="Clear thumbnail cache" HorizontalAlignment="Stretch" Click="ClearCache"/><TextBlock Text="Local files. No account needed." FontSize="11" Opacity="0.6" TextWrapping="Wrap"/></StackPanel>
       </Grid>
       </ScrollViewer>
     </Border>
@@ -67,8 +75,8 @@
         </Grid>
       </Border>
       <Grid Grid.Row="5" ColumnSpacing="12"><Grid.ColumnDefinitions><ColumnDefinition Width="*"/><ColumnDefinition Width="Auto"/><ColumnDefinition Width="Auto"/><ColumnDefinition Width="Auto"/><ColumnDefinition Width="Auto"/></Grid.ColumnDefinitions>
-        <StackPanel Orientation="Horizontal" Spacing="10"><ProgressRing x:Name="Busy" Width="20" Height="20" IsActive="False"/><TextBlock x:Name="Status" Text="Starting library…" VerticalAlignment="Center"/></StackPanel>
-        <Button Grid.Column="1" x:Name="CancelButton" Content="Cancel scan" Click="CancelScan" Visibility="Collapsed"/>
+        <StackPanel Orientation="Horizontal" Spacing="10"><ProgressRing x:Name="Busy" Width="20" Height="20" IsActive="False"/><TextBlock x:Name="Status" Text="Starting library…" VerticalAlignment="Center" TextTrimming="CharacterEllipsis" MaxWidth="360"/></StackPanel>
+        <Button Grid.Column="1" x:Name="CancelButton" Content="Cancel" Click="CancelScan" Visibility="Collapsed"/>
         <Button Grid.Column="2" x:Name="PreviousButton" Content="Previous" Click="PreviousPage"/>
         <TextBlock Grid.Column="3" x:Name="PageText" VerticalAlignment="Center" Text="Page 1"/>
         <Button Grid.Column="4" x:Name="NextButton" Content="Next" Click="NextPage"/>

@@ -18,4 +18,14 @@ Missing or stale originals are not decoded under old keys. Existing cached thumb
 
 ## Limits
 
-Windows CI covers volume resolution and bitmap generation. Physical USB replug testing remains a user acceptance requirement. Directory traversal skips child reparse points; registration rejects source ancestry junctions. File availability can still change immediately after a check; shell operations must revalidate identity at execution. This milestone adds no destructive file operations.
+Windows CI covers volume resolution and bitmap generation. Physical USB replug testing remains a user acceptance requirement. Directory traversal skips child reparse points; registration rejects source ancestry junctions. File availability can still change immediately after a check; shell operations must revalidate identity at execution. Scans and preview preparation never change originals. Explicit copy/move/rename/delete actions use the file-operation safeguards documented in Phase 1.
+
+## Phase 2 offline preparation
+
+Preparation streams the catalog through a SQLite reader, reuses valid cached versions and generates missing previews one at a time. It uses an atomic non-evicting cache write: insufficient capacity leaves existing previews intact, including disconnected sources. Normal page browsing retains its existing LRU behavior and can still evict previews. Preparation is not pinning or archival storage.
+
+Coverage matches current catalog version keys against a local cache-file snapshot, without resolving or accessing original drives. It reports retained previews / indexed media and total cache usage across all sources. It is a point-in-time count, not a guarantee that files can be decoded or retained forever. Rescan after changing originals. Missing, empty and oversized cache files do not count; same-size corrupt cache content is not detected by coverage.
+
+Cancellation keeps completed entries, so another run resumes from cache hits. Source/file mutations inside Luma are blocked while preparation runs. A final coverage pass checks retained keys. Closing the window cancels preparation and waits for all registered cache requests, including canceled page loads, before releasing ownership.
+
+Folders are derived directly from indexed relative paths. Only folders containing indexed media (including descendants) appear, and counts include descendants regardless of the active search/filter. No schema migration or rescan is needed for a Phase 1 catalog. Empty folders are intentionally absent.
