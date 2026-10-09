@@ -77,6 +77,9 @@ try {
     if (Find-Control 'fixture00.bmp') { throw 'Folder navigation did not filter the library.' }
     (Wait-Control 'Up to parent folder').GetCurrentPattern([System.Windows.Automation.InvokePattern]::Pattern).Invoke()
     Wait-Control 'fixture00.bmp' | Out-Null
+    (Wait-Control 'Clear thumbnail cache').GetCurrentPattern([System.Windows.Automation.InvokePattern]::Pattern).Invoke()
+    (Wait-Control 'Clear previews').GetCurrentPattern([System.Windows.Automation.InvokePattern]::Pattern).Invoke()
+    Wait-Control 'Saved preview cache cleared.' | Out-Null
     (Wait-Control 'Prepare offline previews').GetCurrentPattern([System.Windows.Automation.InvokePattern]::Pattern).Invoke()
     for ($j = 0; $j -lt 60; $j++) {
         $nodes = $window.FindAll([System.Windows.Automation.TreeScope]::Descendants,[System.Windows.Automation.Condition]::TrueCondition)
@@ -85,6 +88,19 @@ try {
     }
     if (!$coverage) { throw 'Offline preparation did not report full fixture coverage.' }
     $coverage.Current.Name | Set-Content artifacts/qa/offline-coverage.txt
+    # Make only the isolated synthetic fixture source unavailable, then re-query the cached library.
+    $fixtureRoot = Join-Path $env:TEMP "Luma-smoke-$($process.Id)/Fixture originals"
+    if (!(Test-Path $fixtureRoot)) { throw 'Isolated smoke fixture root was not found.' }
+    Move-Item $fixtureRoot ($fixtureRoot + ' disconnected')
+    (Wait-Control 'Rescan sources').GetCurrentPattern([System.Windows.Automation.InvokePattern]::Pattern).Invoke()
+    Start-Sleep -Seconds 2
+    Wait-Control 'fixture00.bmp' | Out-Null
+    Wait-Control 'Trips' | Out-Null
+    (Wait-Control 'Check offline coverage').GetCurrentPattern([System.Windows.Automation.InvokePattern]::Pattern).Invoke()
+    Start-Sleep -Seconds 1
+    $nodes = $window.FindAll([System.Windows.Automation.TreeScope]::Descendants,[System.Windows.Automation.Condition]::TrueCondition)
+    if (!($nodes | Where-Object { $_.Current.Name -like '8 / 8 previews saved*' })) { throw 'Preview coverage was lost when fixture source went offline.' }
+
     $rectangle = $window.Current.BoundingRectangle
     $bitmap = [System.Drawing.Bitmap]::new([int]$rectangle.Width,[int]$rectangle.Height)
     $graphics = [System.Drawing.Graphics]::FromImage($bitmap)

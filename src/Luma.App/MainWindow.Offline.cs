@@ -79,7 +79,7 @@ public sealed partial class MainWindow
             if (ready)
             {
                 Busy.IsActive = false; CancelButton.Visibility = Visibility.Collapsed; PrepareButton.IsEnabled = true;
-                Status.Text = "Offline preparation stopped. Coverage shows the last checked snapshot.";
+                Status.Text = "Preview preparation finished. Coverage is a point-in-time snapshot.";
             }
         }
     }, true);

@@ -118,7 +118,8 @@ public sealed class ThumbnailCache : IDisposable
             {
                 ct.ThrowIfCancellationRequested();
                 var file = new FileInfo(entry.Path);
-                if (!file.Exists || file.Length == 0 || file.Length > maxEntryBytes) Forget(entry.Path);
+                if (!file.Exists) Forget(entry.Path);
+                else if (file.Length == 0 || file.Length > maxEntryBytes) { File.Delete(entry.Path); Forget(entry.Path); }
                 else if (file.Length != entry.Length) Track(entry.Path, file.Length, file.LastWriteTimeUtc);
             }
             return new(entries.Keys.Select(Path.GetFileNameWithoutExtension).OfType<string>().ToHashSet(StringComparer.Ordinal), retainedBytes, maxBytes);

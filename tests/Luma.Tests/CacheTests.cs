@@ -292,8 +292,12 @@ public sealed class CacheTests : IDisposable
         Assert.Equal(0, (await preparation.InspectAsync()).Cached);
         Assert.Equal(1, (await preparation.PrepareAsync()).Cached);
         foreach (var file in Directory.GetFiles(CachePath, "*.thumb")) File.Delete(file);
+        Assert.Equal(0, (await preparation.InspectAsync()).Cached);
+        await preparation.PrepareAsync();
+        foreach (var file in Directory.GetFiles(CachePath, "*.thumb")) File.WriteAllBytes(file, Array.Empty<byte>());
         var coverage = await preparation.InspectAsync();
         Assert.Equal(0, coverage.Cached); Assert.Equal(0, coverage.CacheBytes);
+        Assert.Empty(Directory.GetFiles(CachePath, "*.thumb"));
     }
 
     [Fact] public async Task ClearCachePreservesCatalogAnnotationsAndOriginals()
