@@ -38,7 +38,11 @@ public sealed partial class MainWindow : Window
     {
         catalog = new(Path.Combine(AppSettings.LocalRoot, "catalog.db"), resolver);
         InitializeComponent();
-        AppWindow.Resize(new global::Windows.Graphics.SizeInt32(1280, 850));
+        var work = Microsoft.UI.Windowing.DisplayArea.GetFromWindowId(AppWindow.Id,
+            Microsoft.UI.Windowing.DisplayAreaFallback.Primary).WorkArea;
+        var width = Math.Min(1280, work.Width - 32); var height = Math.Min(850, work.Height - 32);
+        AppWindow.MoveAndResize(new global::Windows.Graphics.RectInt32(work.X + (work.Width - width) / 2,
+            work.Y + (work.Height - height) / 2, width, height));
         Closed += OnClosed;
         availabilityTimer.Tick += async (_, _) => { if (ready && !scanning && !operation) await Guard(async () => await LoadSources()); };
     }
