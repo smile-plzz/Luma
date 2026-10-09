@@ -25,6 +25,8 @@ public sealed partial class MediaCache(string databasePath, ISourceResolver? sou
                 PRIMARY KEY(source_id, relative_path),
                 FOREIGN KEY(source_id) REFERENCES sources(id));
             CREATE INDEX IF NOT EXISTS ix_media_source ON media(source_id);
+            CREATE INDEX IF NOT EXISTS ix_media_modified ON media(modified_ticks DESC,source_id,relative_path);
+            CREATE INDEX IF NOT EXISTS ix_media_length ON media(length DESC,source_id,relative_path);
             CREATE TABLE IF NOT EXISTS annotations(source_id TEXT NOT NULL, relative_path TEXT NOT NULL,
                 favorite INTEGER NOT NULL DEFAULT 0, tags TEXT NOT NULL DEFAULT '', PRIMARY KEY(source_id,relative_path));
             """;
@@ -147,7 +149,7 @@ public sealed partial class MediaCache(string databasePath, ISourceResolver? sou
     }
 
     private static readonly HashSet<string> Videos = new(StringComparer.OrdinalIgnoreCase)
-        { ".mp4", ".mov", ".mkv", ".avi", ".wmv", ".webm", ".m4v" };
+        { ".mp4", ".mov", ".mkv", ".avi", ".wmv", ".webm", ".m4v", ".mpg", ".mpeg", ".mts", ".m2ts", ".3gp", ".hevc" };
     private static readonly HashSet<string> Extensions = new(Videos.Concat(new[]
-        { ".jpg", ".jpeg", ".png", ".gif", ".bmp", ".webp", ".tif", ".tiff", ".heic", ".heif" }), StringComparer.OrdinalIgnoreCase);
+        { ".jpg", ".jpeg", ".png", ".gif", ".bmp", ".webp", ".tif", ".tiff", ".heic", ".heif", ".avif", ".svg", ".dng", ".cr2", ".cr3", ".nef", ".arw", ".orf", ".rw2" }), StringComparer.OrdinalIgnoreCase);
 }
