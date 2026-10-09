@@ -8,7 +8,7 @@ public sealed record CachedMedia(string SourceId, string RelativePath, long Leng
 public sealed record SourceInfo(string Id, string RootPath, DateTime LastSeenUtc, bool IsOnline);
 
 /// <summary>Persistent metadata for removable media. Database lives on the PC, never on the drive.</summary>
-public sealed class MediaCache(string databasePath)
+public sealed class MediaCache(string databasePath, ISourceResolver? sourceResolver = null)
 {
     private readonly string connectionString = new SqliteConnectionStringBuilder { DataSource = databasePath }.ToString();
     public async Task InitializeAsync(CancellationToken ct = default)
@@ -33,6 +33,8 @@ public sealed class MediaCache(string databasePath)
     public async Task<int> ScanAsync(string sourceId, string root, CancellationToken ct = default)
     {
         if (string.IsNullOrWhiteSpace(sourceId)) throw new ArgumentException("Source ID required", nameof(sourceId));
+        if (sourceResolver is not null)
+            root = sourceResolver.ResolveRoot(sourceId) ?? throw new IOException("Source is offline or its identity has changed.");
         root = Path.GetFullPath(root);
         if (!Directory.Exists(root)) throw new DirectoryNotFoundException(root);
         await using var db = new SqliteConnection(connectionString);
@@ -90,6 +92,11 @@ public sealed class MediaCache(string databasePath)
             }
             catch (IOException) { } catch (UnauthorizedAccessException) { }
         }
+        ct.ThrowIfCancellationRequested();
+        if (!Directory.Exists(root) || (sourceResolver is not null &&
+            !string.Equals(sourceResolver.ResolveRoot(sourceId), root, OperatingSystem.IsWindows() ?
+                StringComparison.OrdinalIgnoreCase : StringComparison.Ordinal)))
+            throw new IOException("Source disconnected or changed during scan.");
         await transaction.CommitAsync(ct);
         return count;
     }
@@ -102,9 +109,10 @@ public sealed class MediaCache(string databasePath)
         cmd.CommandText = "SELECT relative_path,length,modified_ticks,kind FROM media WHERE source_id=$id ORDER BY relative_path";
         cmd.Parameters.AddWithValue("$id", sourceId);
         var result = new List<CachedMedia>();
+        var root = sourceResolver?.ResolveRoot(sourceId);
         await using var reader = await cmd.ExecuteReaderAsync(ct);
         while (await reader.ReadAsync(ct))
-            result.Add(new(sourceId, reader.GetString(0), reader.GetInt64(1), reader.GetInt64(2), reader.GetString(3), false));
+            result.Add(new(sourceId, reader.GetString(0), reader.GetInt64(1), reader.GetInt64(2), reader.GetString(3), root is not null && File.Exists(SourcePaths.Combine(root, reader.GetString(0)))));
         return result;
     }
 

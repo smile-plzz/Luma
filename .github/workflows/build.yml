@@ -1,0 +1,34 @@
+name: Build and test
+on: [push, pull_request]
+permissions:
+  contents: read
+jobs:
+  core:
+    strategy:
+      matrix:
+        os: [windows-latest, ubuntu-latest]
+    runs-on: ${{ matrix.os }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: '8.0.x'
+      - run: dotnet test tests/Luma.Tests/Luma.Tests.csproj -c Release --logger "trx;LogFileName=core.trx"
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: core-results-${{ matrix.os }}
+          path: tests/Luma.Tests/TestResults/*.trx
+  windows:
+    runs-on: windows-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: '8.0.x'
+      - run: dotnet test tests/Luma.Windows.Tests/Luma.Windows.Tests.csproj -c Release --logger "trx;LogFileName=windows.trx"
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: windows-results
+          path: tests/Luma.Windows.Tests/TestResults/*.trx
