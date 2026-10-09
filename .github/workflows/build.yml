@@ -1,0 +1,68 @@
+name: Build and test
+on:
+  push:
+    branches: [main]
+  pull_request:
+  workflow_dispatch:
+concurrency:
+  group: luma-${{ github.ref }}
+  cancel-in-progress: true
+permissions:
+  contents: read
+jobs:
+  core:
+    strategy:
+      matrix:
+        os: [windows-latest, ubuntu-latest]
+    runs-on: ${{ matrix.os }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: '8.0.x'
+      - run: dotnet test tests/Luma.Tests/Luma.Tests.csproj -c Release --logger "trx;LogFileName=core.trx"
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: core-results-${{ matrix.os }}
+          path: tests/Luma.Tests/TestResults/*.trx
+  windows:
+    runs-on: windows-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: '8.0.x'
+      - run: dotnet test tests/Luma.Windows.Tests/Luma.Windows.Tests.csproj -c Release --logger "trx;LogFileName=windows.trx"
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: windows-results
+          path: tests/Luma.Windows.Tests/TestResults/*.trx
+  desktop:
+    runs-on: windows-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: '8.0.x'
+      - name: Publish self-contained Windows app
+        run: dotnet publish src/Luma.App/Luma.App.csproj -c Release -r win-x64 -p:Platform=x64 -o artifacts/Luma-win-x64
+      - name: Inspect published XAML resources
+        shell: pwsh
+        run: |
+          Get-ChildItem artifacts/Luma-win-x64 -Recurse -Include *.xbf,*.pri | Select-Object FullName,Length
+          if (!(Test-Path artifacts/Luma-win-x64/MainWindow.xbf)) { throw 'Published MainWindow.xbf is missing.' }
+      - name: Launch and verify desktop window
+        shell: pwsh
+        run: ./scripts/Smoke-Test.ps1 -Executable artifacts/Luma-win-x64/Luma.App.exe
+      - uses: actions/upload-artifact@v4
+        with:
+          name: Luma-Phase1-win-x64
+          path: artifacts/Luma-win-x64/
+          if-no-files-found: error
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: desktop-smoke-evidence
+          path: artifacts/qa/

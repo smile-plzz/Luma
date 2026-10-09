@@ -1,0 +1,78 @@
+<Window x:Class="Luma.App.MainWindow" xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation" xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml" Title="Luma">
+  <Grid x:Name="Root" Background="{ThemeResource ApplicationPageBackgroundThemeBrush}" Loaded="OnLoaded">
+    <Grid.KeyboardAccelerators>
+      <KeyboardAccelerator Key="C" Modifiers="Control" Invoked="CopyShortcut" />
+      <KeyboardAccelerator Key="X" Modifiers="Control" Invoked="CutShortcut" />
+      <KeyboardAccelerator Key="V" Modifiers="Control" Invoked="PasteShortcut" />
+      <KeyboardAccelerator Key="A" Modifiers="Control" Invoked="SelectShortcut" />
+      <KeyboardAccelerator Key="Delete" Invoked="DeleteShortcut" />
+      <KeyboardAccelerator Key="F2" Invoked="RenameShortcut" />
+    </Grid.KeyboardAccelerators>
+    <Grid.ColumnDefinitions><ColumnDefinition Width="232"/><ColumnDefinition Width="*"/></Grid.ColumnDefinitions>
+    <Border Background="{ThemeResource LayerFillColorDefaultBrush}" BorderBrush="{ThemeResource DividerStrokeColorDefaultBrush}" BorderThickness="0,0,1,0">
+      <ScrollViewer VerticalScrollBarVisibility="Auto" HorizontalScrollBarVisibility="Disabled">
+      <Grid Padding="20,24,16,16" RowSpacing="14">
+        <Grid.RowDefinitions><RowDefinition Height="Auto"/><RowDefinition Height="Auto"/><RowDefinition Height="Auto"/><RowDefinition Height="*"/><RowDefinition Height="Auto"/></Grid.RowDefinitions>
+        <StackPanel><TextBlock Text="Luma" FontSize="30" FontWeight="SemiBold"/><TextBlock Text="Your media, in view." Opacity="0.65" Margin="0,4,0,8"/></StackPanel>
+        <ListView x:Name="Navigation" Grid.Row="1" SelectionChanged="NavigationChanged" SelectedIndex="0">
+          <x:String>All media</x:String><x:String>Timeline</x:String><x:String>Photos</x:String><x:String>Videos</x:String><x:String>Favorites</x:String>
+        </ListView>
+        <StackPanel Grid.Row="2" Spacing="10">
+          <TextBlock Text="SOURCES" FontSize="11" FontWeight="SemiBold" Opacity="0.6" Margin="4,12,0,0"/>
+          <ComboBox x:Name="Sources" HorizontalAlignment="Stretch" SelectionChanged="FilterChanged" PlaceholderText="All sources" AutomationProperties.Name="Source filter"/>
+          <Button x:Name="AddSourceButton" Content="+ Add folder or drive" HorizontalAlignment="Stretch" Click="AddSource"/>
+          <Button x:Name="RescanButton" Content="Rescan sources" HorizontalAlignment="Stretch" Click="Rescan"/>
+          <Button Content="Remove selected source" HorizontalAlignment="Stretch" Click="RemoveSource"/>
+          <TextBox x:Name="FolderFilter" Header="Folder within source" PlaceholderText="e.g. Holidays\2025" TextChanged="SearchChanged"/>
+        </StackPanel>
+        <StackPanel Grid.Row="4" Spacing="10"><Button Content="Settings" HorizontalAlignment="Stretch" Click="Settings"/><TextBlock Text="Local files. No account needed." FontSize="11" Opacity="0.6" TextWrapping="Wrap"/></StackPanel>
+      </Grid>
+      </ScrollViewer>
+    </Border>
+    <Grid Grid.Column="1" Padding="28,24,28,16" RowSpacing="14">
+      <Grid.RowDefinitions><RowDefinition Height="Auto"/><RowDefinition Height="Auto"/><RowDefinition Height="Auto"/><RowDefinition Height="*"/><RowDefinition Height="Auto"/><RowDefinition Height="Auto"/></Grid.RowDefinitions>
+      <Grid ColumnSpacing="24"><Grid.ColumnDefinitions><ColumnDefinition Width="*"/><ColumnDefinition Width="330"/></Grid.ColumnDefinitions>
+        <StackPanel><TextBlock x:Name="Heading" Text="All media" FontSize="28" FontWeight="SemiBold"/><TextBlock Text="Browse here. Open in your favorite apps." Opacity="0.6" Margin="0,4,0,0"/></StackPanel>
+        <TextBox x:Name="SearchBox" Grid.Column="1" PlaceholderText="Search names, folders, or tags" VerticalAlignment="Center" TextChanged="SearchChanged" AutomationProperties.Name="Search library"/>
+      </Grid>
+      <Grid Grid.Row="1"><Grid.ColumnDefinitions><ColumnDefinition Width="*"/><ColumnDefinition Width="Auto"/></Grid.ColumnDefinitions>
+        <CommandBar DefaultLabelPosition="Right" Background="Transparent" HorizontalAlignment="Left" IsOpen="False">
+          <AppBarButton Icon="OpenFile" Label="Open" Click="OpenSelected"/><AppBarButton Icon="Copy" Label="Copy" Click="CopySelected"/><AppBarButton Icon="Cut" Label="Cut" Click="CutSelected"/><AppBarButton Icon="Paste" Label="Paste" Click="PasteSelected"/>
+          <CommandBar.SecondaryCommands><AppBarButton Label="Show in Explorer" Click="RevealSelected"/><AppBarButton Label="Copy path" Click="CopyPath"/><AppBarButton Label="Rename" Click="RenameSelected"/><AppBarButton Label="Delete to Recycle Bin" Click="DeleteSelected"/></CommandBar.SecondaryCommands>
+        </CommandBar>
+        <ComboBox Grid.Column="1" x:Name="SortBox" SelectedIndex="0" SelectionChanged="FilterChanged" VerticalAlignment="Center" AutomationProperties.Name="Sort order"><x:String>Newest first</x:String><x:String>Oldest first</x:String><x:String>Name</x:String><x:String>Largest first</x:String></ComboBox>
+      </Grid>
+      <InfoBar x:Name="Notice" Grid.Row="2" IsOpen="False" IsClosable="True" Severity="Informational"/>
+      <Grid Grid.Row="3">
+        <GridView x:Name="MediaGrid" SelectionMode="Extended" IsItemClickEnabled="False" DoubleTapped="GridDoubleTapped" SelectionChanged="SelectionChanged" RightTapped="GridRightTapped" ScrollViewer.HorizontalScrollBarVisibility="Disabled">
+          <GridView.ItemsPanel><ItemsPanelTemplate><ItemsWrapGrid Orientation="Horizontal"/></ItemsPanelTemplate></GridView.ItemsPanel>
+          <GridView.GroupStyle><GroupStyle><GroupStyle.HeaderTemplate><DataTemplate><TextBlock Text="{Binding Key}" FontSize="22" FontWeight="SemiBold" Margin="8,18,0,12"/></DataTemplate></GroupStyle.HeaderTemplate></GroupStyle></GridView.GroupStyle>
+          <GridView.ItemTemplate><DataTemplate>
+            <Border Width="190" Margin="4" CornerRadius="10" Background="{ThemeResource CardBackgroundFillColorDefaultBrush}" BorderBrush="{ThemeResource CardStrokeColorDefaultBrush}" BorderThickness="1" Padding="8" AutomationProperties.Name="{Binding Name}">
+              <StackPanel Spacing="7"><Grid Height="132" Background="{ThemeResource LayerFillColorDefaultBrush}" CornerRadius="6"><FontIcon Glyph="&#xEB9F;" FontSize="32" Opacity="0.2"/><Image Source="{Binding Thumbnail}" Stretch="UniformToFill"/></Grid>
+                <TextBlock Text="{Binding Name}" FontWeight="SemiBold" TextTrimming="CharacterEllipsis"/>
+                <TextBlock Text="{Binding Caption}" FontSize="10" Opacity="0.6"/><TextBlock Text="{Binding State}" FontSize="11" Foreground="{ThemeResource AccentTextFillColorPrimaryBrush}"/>
+              </StackPanel>
+            </Border>
+          </DataTemplate></GridView.ItemTemplate>
+          <GridView.ContextFlyout><MenuFlyout><MenuFlyoutItem Text="Open" Click="OpenSelected"/><MenuFlyoutItem Text="Show in Explorer" Click="RevealSelected"/><MenuFlyoutSeparator/><MenuFlyoutItem Text="Copy" Click="CopySelected"/><MenuFlyoutItem Text="Cut" Click="CutSelected"/><MenuFlyoutItem Text="Paste into folder…" Click="PasteSelected"/><MenuFlyoutItem Text="Copy path" Click="CopyPath"/><MenuFlyoutSeparator/><MenuFlyoutItem Text="Rename…" Click="RenameSelected"/><MenuFlyoutItem Text="Delete to Recycle Bin…" Click="DeleteSelected"/></MenuFlyout></GridView.ContextFlyout>
+        </GridView>
+        <StackPanel x:Name="EmptyState" HorizontalAlignment="Center" VerticalAlignment="Center" Spacing="12" MaxWidth="380"><FontIcon Glyph="&#xEB9F;" FontSize="48" Opacity="0.4"/><TextBlock x:Name="EmptyTitle" Text="A home for your media" FontSize="24" HorizontalAlignment="Center"/><TextBlock x:Name="EmptyText" Text="Add a folder or drive to start. Your original files stay exactly where they are." TextAlignment="Center" TextWrapping="Wrap" Opacity="0.65"/></StackPanel>
+      </Grid>
+      <Border Grid.Row="4" Padding="12" Background="{ThemeResource LayerFillColorDefaultBrush}" CornerRadius="8">
+        <Grid ColumnSpacing="12"><Grid.ColumnDefinitions><ColumnDefinition Width="*"/><ColumnDefinition Width="200"/><ColumnDefinition Width="Auto"/><ColumnDefinition Width="Auto"/></Grid.ColumnDefinitions>
+          <TextBlock x:Name="SelectionText" Text="Select media to see details" TextTrimming="CharacterEllipsis" VerticalAlignment="Center"/>
+          <TextBox x:Name="TagsBox" Grid.Column="1" PlaceholderText="Tags, separated by commas" MaxLength="1000" AutomationProperties.Name="Selected item tags"/>
+          <Button Grid.Column="2" Content="Save tags" Click="SaveTags"/><Button x:Name="FavoriteButton" Grid.Column="3" Content="☆ Favorite" Click="ToggleFavorite"/>
+        </Grid>
+      </Border>
+      <Grid Grid.Row="5" ColumnSpacing="12"><Grid.ColumnDefinitions><ColumnDefinition Width="*"/><ColumnDefinition Width="Auto"/><ColumnDefinition Width="Auto"/><ColumnDefinition Width="Auto"/><ColumnDefinition Width="Auto"/></Grid.ColumnDefinitions>
+        <StackPanel Orientation="Horizontal" Spacing="10"><ProgressRing x:Name="Busy" Width="20" Height="20" IsActive="False"/><TextBlock x:Name="Status" Text="Starting library…" VerticalAlignment="Center"/></StackPanel>
+        <Button Grid.Column="1" x:Name="CancelButton" Content="Cancel scan" Click="CancelScan" Visibility="Collapsed"/>
+        <Button Grid.Column="2" x:Name="PreviousButton" Content="Previous" Click="PreviousPage"/>
+        <TextBlock Grid.Column="3" x:Name="PageText" VerticalAlignment="Center" Text="Page 1"/>
+        <Button Grid.Column="4" x:Name="NextButton" Content="Next" Click="NextPage"/>
+      </Grid>
+    </Grid>
+  </Grid>
+</Window>
