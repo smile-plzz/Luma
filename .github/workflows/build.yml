@@ -12,6 +12,7 @@ permissions:
 jobs:
   core:
     strategy:
+      fail-fast: false
       matrix:
         os: [windows-latest, ubuntu-latest]
     runs-on: ${{ matrix.os }}
@@ -25,7 +26,9 @@ jobs:
         if: always()
         with:
           name: core-results-${{ matrix.os }}
-          path: tests/Luma.Tests/TestResults/*.trx
+          path: |
+            tests/Luma.Tests/TestResults/*.trx
+            tests/Luma.Tests/bin/Release/net8.0/benchmarks/*.json
   windows:
     runs-on: windows-latest
     steps:

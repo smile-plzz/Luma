@@ -144,7 +144,8 @@ public sealed partial class MainWindow : Window
                 count += await Task.Run(() => catalog.ScanAsync(source.Id, source.RootPath, scanCancellation.Token, progress));
             }
             Status.Text = "Reading capture dates and dimensions…";
-            await Task.Run(() => catalog.EnrichAsync(new WindowsMetadataReader(), SelectedSource, scanCancellation.Token,
+            var metadataSource = SelectedSource;
+            await Task.Run(() => catalog.EnrichAsync(new WindowsMetadataReader(), metadataSource, scanCancellation.Token,
                 new Progress<int>(n => DispatcherQueue.TryEnqueue(() => Status.Text = $"Metadata · {n:N0} updated"))));
             Notify($"Scan complete: {count:N0} media files. Metadata is saved for offline browsing.");
         }

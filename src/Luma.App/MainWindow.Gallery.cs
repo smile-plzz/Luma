@@ -17,6 +17,7 @@ public sealed partial class MainWindow
     private LibraryQuery? activeQuery;
     private GalleryCursor? cursor;
     private bool loading, exhausted;
+    private int peakDecoded;
     private long? beforeTicks;
     private bool Grouped => settings.GroupIndex > 0 && settings.SortIndex is 0 or 1 or 4;
     private string? SelectedAlbum => (AlbumsBox.SelectedItem as Album)?.Id;
@@ -96,6 +97,9 @@ public sealed partial class MainWindow
     }
     private async void TileChanging(ListViewBase sender,ContainerContentChangingEventArgs e)
     {
+        if(e.ItemContainer.Tag is MediaCard previous && (e.InRecycleQueue || !ReferenceEquals(previous,e.Item)))
+        { previous.Realized=false; previous.Thumbnail=null; }
+        e.ItemContainer.Tag = e.InRecycleQueue ? null : e.Item;
         if(e.Item is not MediaCard card) return;
         card.Realized = !e.InRecycleQueue;
         if(e.InRecycleQueue) { card.Thumbnail=null; return; }
@@ -109,6 +113,11 @@ public sealed partial class MainWindow
             using(var writer=new DataWriter(stream.GetOutputStreamAt(0))) { writer.WriteBytes(bytes); await writer.StoreAsync(); await writer.FlushAsync(); }
             stream.Seek(0); var bitmap=new BitmapImage(); await bitmap.SetSourceAsync(stream);
             if(card.Realized && !ct.IsCancellationRequested) card.Thumbnail=bitmap;
+            if(AppSettings.IsSmokeTest)
+            {
+                peakDecoded=Math.Max(peakDecoded,cards.Count(c=>c.Thumbnail is not null));
+                File.WriteAllText(Path.Combine(AppSettings.LocalRoot,"gallery-metrics.json"),System.Text.Json.JsonSerializer.Serialize(new { Loaded=cards.Count,Decoded=cards.Count(c=>c.Thumbnail is not null),PeakDecoded=peakDecoded,ManagedBytes=GC.GetTotalMemory(false) }));
+            }
         }
         catch(OperationCanceledException) { }
         catch(Exception) { /* A missing codec or corrupt preview keeps the accessible placeholder. */ }
@@ -137,7 +146,7 @@ public sealed partial class MainWindow
     { if(!ready)return; settings.Descending=DescendingButton.IsChecked==true; settings.Save(); await Guard(Refresh); }
     private async void GroupChanged(object sender,SelectionChangedEventArgs e)
     { if(!ready)return; settings.GroupIndex=Math.Max(0,GroupBox.SelectedIndex); settings.Save(); await Guard(Refresh); }
-    private void SizeChanged(object sender,RangeBaseValueChangedEventArgs e)
+    private void ThumbnailSizeChanged(object sender,RangeBaseValueChangedEventArgs e)
     { if(!ready)return; settings.ThumbnailSize=(int)e.NewValue; UpdateAppearance(); }
     private void AppearanceChanged(object sender,RoutedEventArgs e)
     {
@@ -169,7 +178,7 @@ public sealed partial class MainWindow
     private void InspectorChanged(object sender,RoutedEventArgs e) => Inspector.Visibility=InspectorToggle.IsChecked==true ? Visibility.Visible : Visibility.Collapsed;
     private void GalleryWheel(object sender,PointerRoutedEventArgs e)
     {
-        if(!Microsoft.UI.Input.InputKeyboardSource.GetKeyStateForCurrentThread(Windows.System.VirtualKey.Control).HasFlag(Windows.UI.Core.CoreVirtualKeyStates.Down))return;
+        if(!Microsoft.UI.Input.InputKeyboardSource.GetKeyStateForCurrentThread(global::Windows.System.VirtualKey.Control).HasFlag(global::Windows.UI.Core.CoreVirtualKeyStates.Down))return;
         ThumbnailSlider.Value=Math.Clamp(ThumbnailSlider.Value + Math.Sign(e.GetCurrentPoint(MediaGrid).Properties.MouseWheelDelta)*10,120,320); e.Handled=true;
     }
     private async void SelectAllMatching(object sender,RoutedEventArgs e) => await Guard(async () =>

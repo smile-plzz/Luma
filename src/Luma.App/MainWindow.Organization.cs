@@ -105,7 +105,7 @@ public sealed partial class MainWindow
     private void FolderDragOver(object sender,DragEventArgs e)
     {
         if(SelectedSource is null || !e.DataView.Contains(StandardDataFormats.StorageItems))return;
-        var move=Microsoft.UI.Input.InputKeyboardSource.GetKeyStateForCurrentThread(Windows.System.VirtualKey.Shift).HasFlag(Windows.UI.Core.CoreVirtualKeyStates.Down);
+        var move=Microsoft.UI.Input.InputKeyboardSource.GetKeyStateForCurrentThread(global::Windows.System.VirtualKey.Shift).HasFlag(global::Windows.UI.Core.CoreVirtualKeyStates.Down);
         e.AcceptedOperation=move ? DataPackageOperation.Move : DataPackageOperation.Copy;
         e.DragUIOverride.Caption=move ? "Move to folder · confirmation required" : "Copy to folder · hold Shift to move"; e.Handled=true;
     }

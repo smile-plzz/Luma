@@ -48,7 +48,7 @@
     <ToggleButton x:Name="DescendingButton" Content="↓" IsChecked="True" Click="DirectionChanged" AutomationProperties.Name="Descending order"/>
     <Button Content="View" AutomationProperties.Name="Gallery view options"><Button.Flyout><Flyout><StackPanel Width="260" Spacing="10">
      <ComboBox x:Name="GroupBox" Header="Group by" SelectedIndex="2" SelectionChanged="GroupChanged"><x:String>None</x:String><x:String>Year</x:String><x:String>Month</x:String><x:String>Day</x:String></ComboBox>
-     <Slider x:Name="ThumbnailSlider" Header="Thumbnail size" Minimum="120" Maximum="320" Value="190" StepFrequency="10" ValueChanged="SizeChanged"/>
+     <Slider x:Name="ThumbnailSlider" Header="Thumbnail size" Minimum="120" Maximum="320" Value="190" StepFrequency="10" ValueChanged="ThumbnailSizeChanged"/>
      <CheckBox x:Name="NamesToggle" Content="Show filenames" Click="AppearanceChanged"/><CheckBox x:Name="DetailsToggle" Content="Show dates and size" Click="AppearanceChanged"/><CheckBox x:Name="FitToggle" Content="Fit entire image" Click="AppearanceChanged"/><CheckBox x:Name="CompactToggle" Content="Compact spacing" Click="AppearanceChanged"/>
      <CheckBox x:Name="CommonToggle" Content="Everyday formats only" IsChecked="True" Click="ContentFilterChanged"/><CheckBox x:Name="RecursiveToggle" Content="Include nested folders" IsChecked="True" Click="ContentFilterChanged"/>
     </StackPanel></Flyout></Button.Flyout></Button>

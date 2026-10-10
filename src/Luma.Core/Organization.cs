@@ -95,7 +95,7 @@ public sealed partial class MediaCache
                 if (!VersionMatches(path, media)) continue;
                 var metadata = await reader.ReadAsync(path, media.Kind, ct);
                 if (sourceResolver?.ResolveRoot(media.SourceId) != root || !VersionMatches(path, media)) continue;
-                await SaveMetadataAsync(media, metadata, ct); progress?.Report(++count);
+                await SaveMetadataAsync(media, metadata, ct); count++; progress?.Report(count);
             }
             catch (IOException) { } catch (UnauthorizedAccessException) { }
         }

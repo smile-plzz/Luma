@@ -38,8 +38,14 @@ try {
     $scroll = $gallery.GetCurrentPattern([System.Windows.Automation.ScrollPattern]::Pattern)
     for ($k=0; $k -lt 18; $k++) { $scroll.SetScrollPercent(-1,100); Start-Sleep -Milliseconds 400 }
     Wait-Control 'fixture259.bmp' | Out-Null
+    $metricsPath=Join-Path $env:TEMP "Luma-smoke-$($process.Id)/gallery-metrics.json"
+    if (Test-Path $metricsPath) {
+        $metrics=Get-Content $metricsPath -Raw | ConvertFrom-Json
+        if ($metrics.PeakDecoded -ge 240) { throw 'Decoded images grew to almost the entire fixture catalog.' }
+        Copy-Item $metricsPath artifacts/qa/gallery-metrics.json
+    } else { throw 'Gallery did not produce image-lifetime metrics.' }
     $scroll.SetScrollPercent(-1,0)
-    Wait-Control 'fixture000.bmp' | Out-Null
+    Wait-Control 'fixture000.bmp'  | Out-Null
     $search = Wait-Control 'Search library'
     $search.GetCurrentPattern([System.Windows.Automation.ValuePattern]::Pattern).SetValue('fixture003')
     Start-Sleep -Seconds 2
