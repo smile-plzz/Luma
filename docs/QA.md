@@ -1,14 +1,20 @@
 # QA
 
+## Verified gallery shipment
+
+[Run 38077921235](https://github.com/smile-plzz/Luma/actions/runs/38077921235), commit `6b94e38c5e4ee4cc0112419fc4b28a3fe6450173`: all jobs passed. 47 core cases pass on each of Windows and Linux; four Windows integration cases pass; self-contained publishing, compiled XAML resources and native UI smoke pass. This code is merged through PR #6. The [testing handoff](TESTING_HANDOFF.md) links the exact ZIP and evidence.
+
+The 260-fixture native run peaked at 58 decoded images and restored 170px thumbnail size with filenames hidden after restart. Offline preparation reported 260/260 saved previews. These are synthetic functional checks, not physical-drive or full-library performance certification.
+
 ## Automated coverage
 
 `Luma.Tests` exercises persistent restart reads, LRU eviction after touch, reduced-budget startup, abandoned temporary cleanup, cancelled writes, oversized entries, invalid keys/path escape, key invalidation, concurrent writes, offline hits without source probes, offline misses without decoding, moved-root reconnect, duplicate decode coalescing, stale files, unplug during generation, persisted catalog availability and cancelled scans.
 
 `Luma.Windows.Tests` exercises actual Windows volume GUID registration/resolution, stable registration with trailing separators, distinct folder IDs and malformed IDs. A generated BMP fixture also tests WinRT thumbnail generation through a resolved volume path and cached retrieval after deleting that fixture. Core CI runs on Windows and Linux; Windows integration runs on Windows.
 
-These tests use small fixtures. They do not establish UI responsiveness or 100,000-file performance. Simulated root changes and disconnects do not replace hardware testing. Cancellation coverage includes both pre-cancelled calls and cancellation after 100 indexed files; identity loss during indexing also verifies transaction rollback. Low-disk faults still require manual coverage.
+Native media tests use small fixtures; catalog scale tests use 1k, 10k and 100k synthetic SQLite records. They do not establish full-library UI responsiveness or 100,000-image decoding performance. Simulated root changes and disconnects do not replace hardware testing. Cancellation coverage includes both pre-cancelled calls and cancellation after 100 indexed files; identity loss during indexing also verifies transaction rollback. Low-disk faults still require manual coverage.
 
-## Required before release
+## Real-life acceptance still pending
 
 - Real USB drive: index, generate thumbnails, close/reopen app, unplug, browse saved thumbnails, replug under a changed drive letter.
 - Use another drive at the old letter; confirm original source stays offline. Reformat and confirm it is not mistaken for the prior volume.
@@ -16,7 +22,7 @@ These tests use small fixtures. They do not establish UI responsiveness or 100,0
 - Decode JPEG/PNG, HEIC with and without codec, MP4/MOV, corrupt files, long/unicode paths, locked files and permission-denied folders.
 - Kill process during cache write; reopen and verify complete prior data, no half-thumbnail, temporary cleanup.
 - Fill local disk, reduce budget, and test concurrent app launch/cache ownership errors.
-- Benchmark cold scan, warm thumbnail browsing, memory, eviction and 100k media items before selecting UI paging defaults.
+- Benchmark cold scan, warm thumbnail browsing, memory, eviction and 100k media items to evaluate continuous-gallery responsiveness.
 - Verify default-app opening, clipboard interoperability, rename and native copy/move/delete dialogs on disposable files. These are implemented but their native shell interactions still need real-PC acceptance.
 
 ## Phase 2 validation baseline
@@ -39,6 +45,6 @@ Before a general release, manually prepare a multi-page removable source, cancel
 
 ## Gallery redesign coverage
 
-See [GALLERY_BUILD.md](GALLERY_BUILD.md) for the current implementation and limits. The gallery suite adds ten cursor sort/direction cases, seven metadata/organization/transfer regressions, and three catalog scale cases (1k/10k/100k). The native smoke now uses 260 fixtures, scrolls to the end and back without paging buttons, records peak decoded images, then performs the existing offline preparation/disconnection sequence. Windows integration also checks BMP/JPEG/PNG decoding, dimensions and missing capture-date fallback. Native smoke additionally creates/populates an album and checks view preferences after restarting the isolated library. Consult the exact gallery PR run for final counts and outcomes.
+See [GALLERY_BUILD.md](GALLERY_BUILD.md) for the current implementation and limits. The gallery suite adds ten cursor sort/direction cases, seven metadata/organization/transfer regressions, and three catalog scale cases (1k/10k/100k). The native smoke now uses 260 fixtures, scrolls to the end and back without paging buttons, records peak decoded images, then performs the existing offline preparation/disconnection sequence. Windows integration also checks BMP/JPEG/PNG decoding, dimensions and missing capture-date fallback. Native smoke additionally creates/populates an album and checks view preferences after restarting the isolated library. The verified gallery run above records the final counts and outcomes.
 
 The current gallery suite contains 47 core test cases (including three scale cases) and four Windows integration cases. A source-list regression also checks that reconnecting under a different mount path updates the displayed path. Core cases run on both Windows and Linux. Native UI smoke is an additional independent gate.

@@ -2,6 +2,8 @@
 
 This build replaces the paged Phase 2 interface with a native chronological gallery, configurable views, versioned metadata and virtual albums. It keeps the existing catalog, volume identity and offline preview cache.
 
+The implementation is merged into `main`; development is closed for this milestone and real-life testing is beginning. See [the shipment and testing handoff](TESTING_HANDOFF.md) for the exact verified download and feedback procedure.
+
 ## Install and upgrade
 
 Download **Luma-Gallery-win-x64** from a successful Build and test workflow run, extract the entire ZIP into a fresh writable folder and launch `Luma.App.exe`. Keep all bundled DLLs and resources beside it. The repository file listing contains source code; the runnable Windows package is an Actions artifact. Windows 10 2004+ / Windows 11 x64 are supported. The portable package is unsigned.

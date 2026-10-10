@@ -1,19 +1,19 @@
 # Luma delivery roadmap
 
-| Milestone | Scope | Acceptance |
+Status: the portable gallery development milestone is closed and merged into `main` through [PR #6](https://github.com/smile-plzz/Luma/pull/6). The next stage is real-life testing and everyday use. No additional feature phase is being started automatically.
+
+| Milestone | Scope | Status |
 | --- | --- | --- |
-| Phase 1 — native library | Source identity, read-only scanning, thumbnails, search/tags/favorites, native file actions | Merged; Windows/Linux core, Windows integration and native UI smoke passed; real-device acceptance remains |
-| Phase 2 — offline browsing | Bulk preparation, cancellation/resume, non-evicting preparation, coverage/usage, cached folders, cache clearing | Merged; exact CI evidence is recorded in QA and the pull request |
-| Phase 3 — gallery redesign | Apple-inspired native shell, continuous gallery, customization/sorting, meaningful timeline, albums and Windows file control | Implemented on the gallery branch; [build guide](GALLERY_BUILD.md) records behavior, migration and acceptance limits; CI evidence accompanies the PR |
-| Phase 4 — scale and delivery | Measured 100k-item workloads, watcher/reconciliation strategy, responsive native file operations, signing/installer | Proposed; requires benchmarks and real-PC acceptance before release claims |
+| Phase 1 — native library | Source identity, read-only scanning, thumbnails, search/tags/favorites, native file actions | Merged |
+| Phase 2 — offline browsing | Bulk preparation, cancellation/resume, coverage, cached folders, cache clearing | Merged |
+| Phase 3 — gallery redesign | Continuous gallery, customization/sorting, timeline, albums and Windows file control | Merged; automated gates passed; portable Windows shipment available |
+| Real-life testing | Personal media, physical drives, Windows file interactions and daily usability | Current stage; user feedback pending |
+| Future delivery work | External-move reconciliation, measured full-library responsiveness, signing/installer | Deferred; prioritize from real-world feedback |
 
-## Immediate next steps
+## Current handoff
 
-1. Download the complete **Luma-Gallery-win-x64** artifact from the successful gallery workflow and extract it before launching `Luma.App.exe`.
-2. Review the gallery pull request, build guide and attached CI/scale evidence; the implementation is on `feat/gallery-redesign` until merged.
-3. Run the physical-drive reconnect, native file-operation and real-world photo/video acceptance checks in [QA](QA.md) and [the build guide](GALLERY_BUILD.md) on disposable bench fixtures.
-4. Use those results to scope Phase 4 delivery work, including external-move reconciliation, signing and an installer. These remain separate from the completed portable gallery build.
+Use [TESTING_HANDOFF.md](TESTING_HANDOFF.md) for the exact tested commit, download, upgrade instructions, known limits and feedback format. [GALLERY_BUILD.md](GALLERY_BUILD.md) describes current behavior; [QA.md](QA.md) separates automated evidence from manual acceptance.
 
-The latest user testing changes the priority: a comfortable gallery and continuous browsing come before further expansion of the existing maintenance-heavy screen. Default to month-grouped chronological browsing, while preserving an optional plain grid and native Windows file-management conventions.
+Keep the shipped code stable while testing. Prioritize reported data-integrity or startup failures first, then recurring browsing/performance problems, then visual/usability refinements. A future fix should reproduce the report, receive appropriate regression checks, and identify its own tested build before shipment.
 
-No milestone currently includes an embedded media player, cloud synchronization or copying full originals into the preview cache. Preview pinning needs a separate capacity/reservation design rather than an unlimited promise of retention.
+The app opens originals in default applications. Cloud accounts, an embedded player/editor, automatic original-file rearrangement and full-original backup are outside this milestone. Preview pinning needs a separate capacity design. Signing and an installer are not required to begin testing the unsigned portable build.

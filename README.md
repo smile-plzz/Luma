@@ -2,12 +2,14 @@
 
 A native Windows media library for existing folders and drives. Browse photos and videos, organize favorites and tags, and open originals in your default apps.
 
+Development of the portable gallery milestone is complete and merged into `main`. Luma is now in real-life testing and everyday-use evaluation; refinements will follow user feedback. Start with the [testing handoff](docs/TESTING_HANDOFF.md) for the verified shipment, setup and feedback checklist.
+
 ## Run the Windows app
 
-1. Open the **Build and test** GitHub Actions run for the gallery redesign branch/PR.
-2. Download the **Luma-Gallery-win-x64** artifact from a successful run.
+1. Open the [verified Windows download](https://github.com/smile-plzz/Luma/actions/runs/38077921235/artifacts/11678984011) (GitHub sign-in may be required).
+2. Download the **Luma-Gallery-win-x64** ZIP. This executable package is an Actions artifact; the repository files contain the source.
 3. Extract the entire ZIP to a writable folder and run **Luma.App.exe**. Keep the bundled files beside the executable.
-4. Select **Add folder or drive**. Browse the indexed media; thumbnails are cached as you visit pages.
+4. Select **Add folder or drive**. Browse the indexed media; thumbnails are cached as you browse.
 
 Windows 10 version 2004+ or Windows 11, x64. The portable build bundles .NET and Windows App SDK dependencies. It is unsigned, so Windows may show its usual downloaded-app warning. There is no installer or store package yet.
 
@@ -30,12 +32,13 @@ Windows 10 version 2004+ or Windows 11, x64. The portable build bundles .NET and
 | --- | --- |
 | Ctrl+C / Ctrl+X | Copy / cut selected originals |
 | Ctrl+V | Choose a destination folder and paste |
+| Ctrl+mouse wheel | Resize gallery thumbnails |
 | Ctrl+A | Select loaded results (explicit full-result selection is also available) |
 | F2 | Rename selected original |
 | Delete | Confirm deletion through Windows shell |
 | Double-click | Open in the default app |
 
-Text inputs keep their normal editing shortcuts. Files on offline drives can be browsed from cache but cannot be opened or modified. Windows handles collisions and native file-operation confirmations.
+Text inputs keep their normal editing shortcuts. Files on offline drives can be browsed from cache but cannot be opened or modified. Luma skips existing filenames during its copy/move transfers; native Windows dialogs handle Recycle Bin deletion. See the build guide for operation reports and partial failures.
 
 ## Storage
 
