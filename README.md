@@ -4,8 +4,8 @@ A native Windows media library for existing folders and drives. Browse photos an
 
 ## Run the Windows app
 
-1. Open the **Build and test** GitHub Actions run for the Phase 2 branch/PR.
-2. Download the **Luma-Phase2-win-x64** artifact from a successful run.
+1. Open the **Build and test** GitHub Actions run for the gallery redesign branch/PR.
+2. Download the **Luma-Gallery-win-x64** artifact from a successful run.
 3. Extract the entire ZIP to a writable folder and run **Luma.App.exe**. Keep the bundled files beside the executable.
 4. Select **Add folder or drive**. Browse the indexed media; thumbnails are cached as you visit pages.
 
@@ -14,7 +14,9 @@ Windows 10 version 2004+ or Windows 11, x64. The portable build bundles .NET and
 ## What works
 
 - Background read-only folder/drive scanning, cancellation, rescanning and safe stale-entry reconciliation after an error-free scan.
-- Paged thumbnail grid, timeline by modification month, search, source/folder filters, photo/video filters, favorites and tags.
+- Continuous virtualized gallery; year/month/day grouping; capture-date fallback; date jumps, search, source/folder/album filters, favorites and tags.
+- Remembered thumbnail size, fit/crop, density, labels, format filters and sort direction.
+- Virtual albums and stable catalog identities preserve organization across in-app moves.
 - Default-app opening, Explorer reveal, copy/cut/paste, rename and Windows Recycle Bin deletion dialogs.
 - Cached subfolder navigation with parent navigation, available offline without rescanning older libraries.
 - Bulk offline preview preparation with cancellation/resume, coverage and cache usage, and confirmed cache clearing.
@@ -28,7 +30,7 @@ Windows 10 version 2004+ or Windows 11, x64. The portable build bundles .NET and
 | --- | --- |
 | Ctrl+C / Ctrl+X | Copy / cut selected originals |
 | Ctrl+V | Choose a destination folder and paste |
-| Ctrl+A | Select the current page |
+| Ctrl+A | Select loaded results (explicit full-result selection is also available) |
 | F2 | Rename selected original |
 | Delete | Confirm deletion through Windows shell |
 | Double-click | Open in the default app |
@@ -52,4 +54,4 @@ dotnet publish src/Luma.App/Luma.App.csproj -c Release -r win-x64 -p:Platform=x6
 
 Core tests also run on Linux. GitHub Actions builds the app, runs Windows integration tests, verifies its native window and uploads build/test evidence. See the specific workflow result before treating a binary as validated.
 
-[Phase 2 guide](docs/PHASE_2.md) · [Roadmap](docs/ROADMAP.md) · [Phase 1 scope and limits](docs/PHASE_1.md) · [External-drive design](docs/EXTERNAL_DRIVES.md) · [QA](docs/QA.md)
+[Gallery build guide](docs/GALLERY_BUILD.md) · [Phase 2 guide](docs/PHASE_2.md) · [Gallery redesign plan](docs/GALLERY_REDESIGN.md) · [Roadmap](docs/ROADMAP.md) · [Phase 1 scope and limits](docs/PHASE_1.md) · [External-drive design](docs/EXTERNAL_DRIVES.md) · [QA](docs/QA.md)

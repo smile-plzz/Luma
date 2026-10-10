@@ -2,10 +2,28 @@ using System.Text.Json;
 namespace Luma.App;
 public sealed class AppSettings
 {
+    public int SortIndex { get; set; } = 4;
+    public bool Descending { get; set; } = true;
+    public int GroupIndex { get; set; } = 2;
+    public int ThumbnailSize { get; set; } = 190;
+    public bool ShowNames { get; set; }
+    public bool ShowDetails { get; set; }
+    public bool FitImages { get; set; }
+    public bool Compact { get; set; }
+    public bool CommonOnly { get; set; } = true;
+    public bool IncludeDescendants { get; set; } = true;
     public int CacheGiB { get; set; } = 2;
     public string Theme { get; set; } = "Default";
     public static bool IsSmokeTest => Environment.GetCommandLineArgs().Contains("--smoke-test");
-    public static string LocalRoot => IsSmokeTest ? Path.Combine(Path.GetTempPath(), "Luma-smoke-" + Environment.ProcessId)
+    private static string SmokeSession
+    {
+        get
+        {
+            var value=Environment.GetCommandLineArgs().FirstOrDefault(a=>a.StartsWith("--smoke-session="))?["--smoke-session=".Length..];
+            return Guid.TryParse(value,out var id) ? id.ToString("N") : Environment.ProcessId.ToString();
+        }
+    }
+    public static string LocalRoot => IsSmokeTest ? Path.Combine(Path.GetTempPath(), "Luma-smoke-" + SmokeSession)
         : Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData), "Luma");
     public static AppSettings Load()
     {

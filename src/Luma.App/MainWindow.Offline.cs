@@ -101,6 +101,7 @@ public sealed partial class MainWindow
             if (!ready) return;
             CoverageText.Text = "Saved preview cache cleared.";
             foreach (var card in cards) card.Thumbnail = null;
+            queryCancellation = new();
             Notify("Saved previews cleared. Browsing connected sources will cache previews again.");
         }
         finally { clearing = false; }

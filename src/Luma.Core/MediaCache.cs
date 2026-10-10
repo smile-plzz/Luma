@@ -31,6 +31,7 @@ public sealed partial class MediaCache(string databasePath, ISourceResolver? sou
                 favorite INTEGER NOT NULL DEFAULT 0, tags TEXT NOT NULL DEFAULT '', PRIMARY KEY(source_id,relative_path));
             """;
         await cmd.ExecuteNonQueryAsync(ct);
+        cmd.CommandText = OrganizationSchema; await cmd.ExecuteNonQueryAsync(ct);
     }
 
     // Caller supplies a durable source ID (e.g. volume GUID), not a mutable drive letter.
@@ -121,6 +122,12 @@ public sealed partial class MediaCache(string databasePath, ISourceResolver? sou
             reconcile.CommandText = "DELETE FROM media WHERE source_id=$id AND relative_path NOT IN (SELECT path FROM scanned)";
             reconcile.Parameters.AddWithValue("$id", sourceId);
             await reconcile.ExecuteNonQueryAsync(ct);
+        }
+        await using (var identities = db.CreateCommand())
+        {
+            identities.Transaction = (SqliteTransaction)transaction;
+            identities.CommandText = "INSERT OR IGNORE INTO media_ids SELECT lower(hex(randomblob(16))),source_id,relative_path FROM media";
+            await identities.ExecuteNonQueryAsync(ct);
         }
         await transaction.CommitAsync(ct);
         progress?.Report(count);
