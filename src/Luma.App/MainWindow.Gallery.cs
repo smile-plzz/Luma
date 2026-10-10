@@ -24,7 +24,8 @@ public sealed partial class MainWindow
 
     private void ApplyViewSettings()
     {
-        SortBox.SelectedIndex = Math.Clamp(settings.SortIndex,0,5);
+        settings.SortIndex=Math.Clamp(settings.SortIndex,0,5); settings.GroupIndex=Math.Clamp(settings.GroupIndex,0,3); settings.ThumbnailSize=Math.Clamp(settings.ThumbnailSize,120,320);
+        SortBox.SelectedIndex = settings.SortIndex;
         GroupBox.SelectedIndex = Math.Clamp(settings.GroupIndex,0,3);
         DescendingButton.IsChecked = settings.Descending;
         ThumbnailSlider.Value = Math.Clamp(settings.ThumbnailSize,120,320);
@@ -61,7 +62,7 @@ public sealed partial class MainWindow
             total = page.Total; cursor = page.Next;
             foreach(var item in page.Items)
             {
-                var card = new MediaCard(item,settings); cards.Add(card);
+                var card = new MediaCard(item,settings) { IsCut=pendingCutIds.Contains(item.Id) }; cards.Add(card);
                 if (Grouped)
                 {
                     if (groups.Count == 0 || groups[^1].Key != card.Group) groups.Add(new(card.Group));
@@ -184,7 +185,9 @@ public sealed partial class MainWindow
     private async void SelectAllMatching(object sender,RoutedEventArgs e) => await Guard(async () =>
     {
         if(!await Confirm("Select all matching results?",$"Load and select {total:N0} matching items. File actions will affect this full selection.","Select all"))return;
-        while(!exhausted && ready) { if(loading) { await Task.Delay(50); continue; } await LoadMore(); }
+        var generation=queryCancellation;
+        while(!exhausted && ready && generation==queryCancellation) { if(loading) { await Task.Delay(50); continue; } await LoadMore(); }
+        if(generation!=queryCancellation) { Notify("Selection cancelled because the active filters changed."); return; }
         MediaGrid.SelectAll();
     },true);
 }

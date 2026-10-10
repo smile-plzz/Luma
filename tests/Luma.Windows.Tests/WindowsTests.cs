@@ -44,6 +44,34 @@ public sealed class WindowsTests
         }
     }
 
+    [Theory]
+    [InlineData("jpg")]
+    [InlineData("png")]
+    public async Task EverydayImageFormatsProducePreviewAndDimensions(string extension)
+    {
+        var root = Path.Combine(Path.GetTempPath(), "Luma-format-" + Guid.NewGuid());
+        Directory.CreateDirectory(root);
+        try
+        {
+            var folder = await global::Windows.Storage.StorageFolder.GetFolderFromPathAsync(root);
+            var file = await folder.CreateFileAsync("sample." + extension);
+            using (var stream = await file.OpenAsync(global::Windows.Storage.FileAccessMode.ReadWrite))
+            {
+                var encoder = await global::Windows.Graphics.Imaging.BitmapEncoder.CreateAsync(extension == "jpg" ?
+                    global::Windows.Graphics.Imaging.BitmapEncoder.JpegEncoderId : global::Windows.Graphics.Imaging.BitmapEncoder.PngEncoderId, stream);
+                encoder.SetPixelData(global::Windows.Graphics.Imaging.BitmapPixelFormat.Bgra8,
+                    global::Windows.Graphics.Imaging.BitmapAlphaMode.Ignore, 96, 64, 96, 96,
+                    Enumerable.Repeat((byte)180, 96 * 64 * 4).ToArray());
+                await encoder.FlushAsync();
+            }
+            var metadata = await new WindowsMetadataReader().ReadAsync(file.Path, "photo", CancellationToken.None);
+            Assert.Equal(96, metadata.Width); Assert.Equal(64, metadata.Height);
+            var preview = await new WindowsThumbnailGenerator().GenerateAsync(file.Path, 128, CancellationToken.None);
+            Assert.NotNull(preview); Assert.NotEmpty(preview!);
+        }
+        finally { Directory.Delete(root, true); }
+    }
+
     [Fact]
     public void IdentityIsStableAndFoldersOnSameVolumeAreDistinct()
     {

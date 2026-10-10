@@ -1,6 +1,6 @@
 # Luma gallery redesign
 
-Status: implementation plan, based on feedback from testing the Phase 2 Windows build. This document describes the next build; it does not claim that the redesign is already implemented.
+Status: approved design specification, now implemented on `feat/gallery-redesign`. See [the build guide](GALLERY_BUILD.md) for shipped behavior, verification and explicit implementation limits. CI results are recorded on the pull request.
 
 ## Product direction
 
@@ -121,3 +121,7 @@ Manual acceptance includes USB disconnect/reconnect under a changed drive letter
 ## Scope boundaries
 
 No cloud account, embedded player/editor, face recognition, automatic original-file rearrangement or full-original backup is required. Preview caching remains bounded and is not backup storage. The next action is Step 1, followed by the remaining steps in order; no further design-choice confirmation is needed for the defaults recorded above.
+
+## Implementation decisions
+
+The native gallery keeps lightweight loaded records for backward navigation and stable selection; it releases decoded images as containers recycle. This replaces the initially proposed removal of entire record windows, avoiding scroll-position churn. Sources use a cached child-folder navigator with a parent action rather than a fully expanded recursive tree. Date jumps target available months and continue into older results. Conflicting transfer filenames are preserved/skipped rather than offering overwrite. These behaviors are explicit in the build guide and tested at their actual scope.

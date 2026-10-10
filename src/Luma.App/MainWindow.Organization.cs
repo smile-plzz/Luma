@@ -140,7 +140,7 @@ public sealed partial class MainWindow
         if(data.Contains("Luma.FileSelection.v1"))media=JsonSerializer.Deserialize<CachedMedia[]>((string)await data.GetDataAsync("Luma.FileSelection.v1")) ?? [];
         var paths=media.Length>0 ? media.Select(Resolve).ToArray() : items.Select(i=>i.Path).ToArray();
         if(await TransferPaths(paths,media,destination,move))
-        { data.ReportOperationCompleted(move ? DataPackageOperation.Move : DataPackageOperation.Copy); if(move)Clipboard.Clear(); }
+        { data.ReportOperationCompleted(move ? DataPackageOperation.Move : DataPackageOperation.Copy); if(move) { Clipboard.Clear(); pendingCutIds.Clear(); foreach(var card in cards)card.IsCut=false; } }
     }
     private async Task<bool> TransferPaths(string[] paths,CachedMedia[] media,string destination,bool move)
     {
@@ -190,6 +190,11 @@ public sealed partial class MainWindow
             Notify($"{reports.Count(r=>move ? r.Moved : r.Copied):N0} / {paths.Length:N0} completed. " + (errors.Length>0 ? errors[0].Error+" Details: "+log : "Original organization is retained for in-app moves."),errors.Length>0);
             return reports.Count==paths.Length && errors.Length==0;
         }
-        finally { Busy.IsActive=false; CancelButton.Visibility=Visibility.Collapsed; }
+        finally
+        {
+            try { await File.WriteAllTextAsync(Path.Combine(AppSettings.LocalRoot,"last-transfer.json"),JsonSerializer.Serialize(reports,new JsonSerializerOptions { WriteIndented=true })); }
+            catch(IOException) { Notify("The transfer report could not be saved. Check available disk space.",true); }
+            Busy.IsActive=false; CancelButton.Visibility=Visibility.Collapsed;
+        }
     }
 }

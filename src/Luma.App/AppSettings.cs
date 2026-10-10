@@ -15,7 +15,15 @@ public sealed class AppSettings
     public int CacheGiB { get; set; } = 2;
     public string Theme { get; set; } = "Default";
     public static bool IsSmokeTest => Environment.GetCommandLineArgs().Contains("--smoke-test");
-    public static string LocalRoot => IsSmokeTest ? Path.Combine(Path.GetTempPath(), "Luma-smoke-" + Environment.ProcessId)
+    private static string SmokeSession
+    {
+        get
+        {
+            var value=Environment.GetCommandLineArgs().FirstOrDefault(a=>a.StartsWith("--smoke-session="))?["--smoke-session=".Length..];
+            return Guid.TryParse(value,out var id) ? id.ToString("N") : Environment.ProcessId.ToString();
+        }
+    }
+    public static string LocalRoot => IsSmokeTest ? Path.Combine(Path.GetTempPath(), "Luma-smoke-" + SmokeSession)
         : Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData), "Luma");
     public static AppSettings Load()
     {

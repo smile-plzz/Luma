@@ -24,6 +24,7 @@ public sealed partial class MainWindow : Window
     private ThumbnailService? thumbnails;
     private CancellationTokenSource? queryCancellation, scanCancellation, searchCancellation;
     private readonly HashSet<Task> cacheTasks = new();
+    private readonly HashSet<string> pendingCutIds = new();
     private CancellationTokenSource? preparationCancellation;
     private bool preparing, clearing;
     private bool ready, scanning, operation;
@@ -53,7 +54,7 @@ public sealed partial class MainWindow : Window
         if (ready) return;
         await Guard(async () =>
         {
-            if (AppSettings.IsSmokeTest) { settings.ThumbnailSize=140; settings.ShowNames=true; }
+            if (AppSettings.IsSmokeTest && !File.Exists(Path.Combine(AppSettings.LocalRoot,"settings.json"))) { settings.ThumbnailSize=140; settings.ShowNames=true; }
             ApplyTheme();
             await Task.Run(() => catalog.InitializeAsync());
             cache = await Task.Run(() => new ThumbnailCache(Path.Combine(AppSettings.LocalRoot, "thumbnails"), Math.Clamp(settings.CacheGiB, 1, 32) * 1024L * 1024 * 1024));
@@ -103,9 +104,10 @@ public sealed partial class MainWindow : Window
     {
         var selected = SelectedSource;
         var all = await Task.Run(() => catalog.SourcesAsync());
-        var signature = string.Join(";", all.Select(s => s.Id + s.IsOnline));
-        var changed = signature != sourceSignature; sourceSignature = signature;
         var labels = await catalog.SourceLabelsAsync();
+        var signature = string.Join(";", all.Select(s => s.Id + s.IsOnline + (labels.TryGetValue(s.Id,out var label) ? label : "")));
+        var changed = signature != sourceSignature; sourceSignature = signature;
+        if(!changed && Sources.ItemsSource is not null) return;
         var choices = new List<SourceChoice> { new(null, "All sources") };
         choices.AddRange(all.Select(s => new SourceChoice(s.Id, $"{(s.IsOnline ? "●" : "○")} {(labels.TryGetValue(s.Id, out var label) && label.Length > 0 ? label : s.RootPath)}")));
         var wasReady = ready; ready = false;
@@ -212,6 +214,9 @@ public sealed partial class MainWindow : Window
         data.SetStorageItems(files);
         data.SetData("Luma.FileSelection.v1", JsonSerializer.Serialize(selected.Select(c => c.Item.Media).ToArray()));
         Clipboard.SetContent(data); Clipboard.Flush();
+        pendingCutIds.Clear();
+        if(cut) foreach(var card in selected) pendingCutIds.Add(card.Item.Id);
+        foreach(var card in cards) card.IsCut=pendingCutIds.Contains(card.Item.Id);
         Notify($"{files.Count} file(s) ready to {(cut ? "move" : "copy")}. Paste into a destination folder.");
     }
     private async void CopySelected(object sender, RoutedEventArgs e) => await Guard(() => Copy(false), true);
@@ -268,6 +273,7 @@ public sealed partial class MainWindow : Window
     private async Task<string?> Prompt(string title, string description, string initial)
     {
         var input = new TextBox { Text = initial, Header = description, MinWidth = 320 };
+        Microsoft.UI.Xaml.Automation.AutomationProperties.SetAutomationId(input,"DialogInput");
         var dialog = new ContentDialog { XamlRoot = Root.XamlRoot, Title = title, Content = input, PrimaryButtonText = "Save", CloseButtonText = "Cancel" };
         return await dialog.ShowAsync() == ContentDialogResult.Primary ? input.Text.Trim() : null;
     }

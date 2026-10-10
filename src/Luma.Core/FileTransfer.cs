@@ -23,6 +23,7 @@ public static class FileTransfer
             }
             ct.ThrowIfCancellationRequested();
             if (!sourceStillValid()) throw new IOException("Source changed while copying.");
+            File.SetLastWriteTimeUtc(temporary,File.GetLastWriteTimeUtc(source));
             File.Move(temporary, destination, false); copied = true;
             if (move)
             {

@@ -19,6 +19,9 @@ public sealed class MediaCard(LibraryItem item, AppSettings settings) : INotifyP
     public Visibility Labels => settings.ShowNames ? Visibility.Visible : Visibility.Collapsed;
     public Visibility Details => settings.ShowDetails ? Visibility.Visible : Visibility.Collapsed;
     public Stretch Fit => settings.FitImages ? Stretch.Uniform : Stretch.UniformToFill;
+    private bool isCut;
+    public bool IsCut { get => isCut; set { isCut=value; Changed(nameof(CutOpacity)); } }
+    public double CutOpacity => IsCut ? 0.45 : 1;
     public bool Realized { get; set; }
     public bool Loading { get; set; }
     public BitmapImage? Thumbnail { get => thumbnail; set { thumbnail=value; Changed(nameof(Thumbnail)); } }

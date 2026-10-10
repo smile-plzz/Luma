@@ -3,9 +3,13 @@ $ErrorActionPreference = 'Stop'
 Add-Type -AssemblyName UIAutomationClient
 Add-Type -AssemblyName UIAutomationTypes
 Add-Type -AssemblyName System.Drawing
+Add-Type -AssemblyName System.Windows.Forms
 New-Item -ItemType Directory -Force artifacts/qa | Out-Null
 $exe = (Resolve-Path $Executable).Path
-$process = Start-Process $exe -ArgumentList "--smoke-test" -PassThru
+$sessionId=[Guid]::NewGuid().ToString('N')
+$smokeRoot=Join-Path $env:TEMP "Luma-smoke-$sessionId"
+$launchArgs=@('--smoke-test',"--smoke-session=$sessionId")
+$process = Start-Process $exe -ArgumentList $launchArgs -PassThru
 try {
     $window = $null
     for ($i = 0; $i -lt 60; $i++) {
@@ -20,6 +24,17 @@ try {
     function Find-Control([string]$Name) {
         $condition = [System.Windows.Automation.PropertyCondition]::new([System.Windows.Automation.AutomationElement]::NameProperty,$Name)
         return $window.FindFirst([System.Windows.Automation.TreeScope]::Descendants,$condition)
+    }
+    function Find-Id([string]$Id) {
+        $condition=[System.Windows.Automation.PropertyCondition]::new([System.Windows.Automation.AutomationElement]::AutomationIdProperty,$Id)
+        return $window.FindFirst([System.Windows.Automation.TreeScope]::Descendants,$condition)
+    }
+    function Select-Card([string]$Name) {
+        $item=Wait-Control $Name; $pattern=$null
+        while ($item -and !$item.TryGetCurrentPattern([System.Windows.Automation.SelectionItemPattern]::Pattern,[ref]$pattern)) {
+            $item=[System.Windows.Automation.TreeWalker]::ControlViewWalker.GetParent($item)
+        }
+        if (!$item) { throw "Card is not selectable: $Name" }; $pattern.Select()
     }
     function Wait-Control([string]$Name) {
         for ($j = 0; $j -lt 120; $j++) { $found = Find-Control $Name; if ($found) { return $found }; Start-Sleep -Milliseconds 500 }
@@ -38,7 +53,7 @@ try {
     $scroll = $gallery.GetCurrentPattern([System.Windows.Automation.ScrollPattern]::Pattern)
     for ($k=0; $k -lt 18; $k++) { $scroll.SetScrollPercent(-1,100); Start-Sleep -Milliseconds 400 }
     Wait-Control 'fixture259.bmp' | Out-Null
-    $metricsPath=Join-Path $env:TEMP "Luma-smoke-$($process.Id)/gallery-metrics.json"
+    $metricsPath=Join-Path $smokeRoot "gallery-metrics.json"
     if (Test-Path $metricsPath) {
         $metrics=Get-Content $metricsPath -Raw | ConvertFrom-Json
         if ($metrics.PeakDecoded -ge 240) { throw 'Decoded images grew to almost the entire fixture catalog.' }
@@ -70,6 +85,29 @@ try {
     if (Find-Control 'fixture000.bmp') { throw 'Favorites filter included a non-favorite.' }
     (Wait-Control 'Library').GetCurrentPattern([System.Windows.Automation.SelectionItemPattern]::Pattern).Select()
     Start-Sleep -Seconds 2
+    Wait-Control 'fixture000.bmp' | Out-Null
+    # Create and use an actual virtual album through the desktop UI.
+    (Wait-Control '+ Album').GetCurrentPattern([System.Windows.Automation.InvokePattern]::Pattern).Invoke()
+    Start-Sleep -Milliseconds 500
+    (Find-Id 'DialogInput').GetCurrentPattern([System.Windows.Automation.ValuePattern]::Pattern).SetValue('Smoke album')
+    (Wait-Control 'Save').GetCurrentPattern([System.Windows.Automation.InvokePattern]::Pattern).Invoke()
+    Start-Sleep -Seconds 1
+    (Wait-Control 'Reset').GetCurrentPattern([System.Windows.Automation.InvokePattern]::Pattern).Invoke()
+    $search.GetCurrentPattern([System.Windows.Automation.ValuePattern]::Pattern).SetValue('fixture003')
+    Start-Sleep -Seconds 1
+    Select-Card 'fixture003.bmp'
+    (Find-Id 'InspectorToggle').GetCurrentPattern([System.Windows.Automation.TogglePattern]::Pattern).Toggle()
+    (Wait-Control 'Add to album…').GetCurrentPattern([System.Windows.Automation.InvokePattern]::Pattern).Invoke()
+    (Wait-Control 'Add').GetCurrentPattern([System.Windows.Automation.InvokePattern]::Pattern).Invoke()
+    Start-Sleep -Seconds 1
+    (Wait-Control 'Album filter').GetCurrentPattern([System.Windows.Automation.ExpandCollapsePattern]::Pattern).Expand()
+    (Wait-Control 'Smoke album (1)').GetCurrentPattern([System.Windows.Automation.SelectionItemPattern]::Pattern).Select()
+    $search.GetCurrentPattern([System.Windows.Automation.ValuePattern]::Pattern).SetValue('')
+    Start-Sleep -Seconds 1
+    Wait-Control 'fixture003.bmp' | Out-Null
+    if (Find-Control 'fixture000.bmp') { throw 'Album included a file that was not added.' }
+    (Find-Id 'InspectorToggle').GetCurrentPattern([System.Windows.Automation.TogglePattern]::Pattern).Toggle()
+    (Wait-Control 'Reset').GetCurrentPattern([System.Windows.Automation.InvokePattern]::Pattern).Invoke()
     Wait-Control 'fixture000.bmp' | Out-Null
     # Select the registered fixture source; folder navigation uses saved catalog data.
     (Wait-Control 'Source filter').GetCurrentPattern([System.Windows.Automation.ExpandCollapsePattern]::Pattern).Expand()
@@ -103,7 +141,7 @@ try {
     if (!$coverage) { throw 'Offline preparation did not report full fixture coverage.' }
     $coverage.Current.Name | Set-Content artifacts/qa/offline-coverage.txt
     # Make only the isolated synthetic fixture source unavailable, then re-query the cached library.
-    $fixtureRoot = Join-Path $env:TEMP "Luma-smoke-$($process.Id)/Fixture originals"
+    $fixtureRoot = Join-Path $smokeRoot "Fixture originals"
     if (!(Test-Path $fixtureRoot)) { throw 'Isolated smoke fixture root was not found.' }
     Move-Item $fixtureRoot ($fixtureRoot + ' disconnected')
     (Wait-Control 'Rescan sources').GetCurrentPattern([System.Windows.Automation.InvokePattern]::Pattern).Invoke()
@@ -115,13 +153,35 @@ try {
     $nodes = $window.FindAll([System.Windows.Automation.TreeScope]::Descendants,[System.Windows.Automation.Condition]::TrueCondition)
     if (!($nodes | Where-Object { $_.Current.Name -like '260 / 260 previews saved*' })) { throw 'Preview coverage was lost when fixture source went offline.' }
 
+    # Persist view choices, restart the same isolated library and verify native controls restore them.
+    (Wait-Control 'Gallery view options').GetCurrentPattern([System.Windows.Automation.InvokePattern]::Pattern).Invoke()
+    (Find-Id 'ThumbnailSlider').GetCurrentPattern([System.Windows.Automation.RangeValuePattern]::Pattern).SetValue(170)
+    (Find-Id 'NamesToggle').GetCurrentPattern([System.Windows.Automation.TogglePattern]::Pattern).Toggle()
+    [System.Windows.Forms.SendKeys]::SendWait('{ESC}')
+    $process.CloseMainWindow() | Out-Null
+    if (!$process.WaitForExit(10000)) { throw 'App did not close after completed work.' }
+    $process=Start-Process $exe -ArgumentList $launchArgs -PassThru
+    $window=$null
+    for ($i=0;$i -lt 60;$i++) {
+        Start-Sleep -Milliseconds 500
+        $condition=[System.Windows.Automation.PropertyCondition]::new([System.Windows.Automation.AutomationElement]::ProcessIdProperty,$process.Id)
+        $window=[System.Windows.Automation.AutomationElement]::RootElement.FindFirst([System.Windows.Automation.TreeScope]::Children,$condition)
+        if($window -and $window.Current.Name -eq 'Luma') { break }
+    }
+    Wait-Control 'fixture000.bmp' | Out-Null
+    (Wait-Control 'Gallery view options').GetCurrentPattern([System.Windows.Automation.InvokePattern]::Pattern).Invoke()
+    if ((Find-Id 'ThumbnailSlider').GetCurrentPattern([System.Windows.Automation.RangeValuePattern]::Pattern).Current.Value -ne 170) { throw 'Thumbnail size did not survive restart.' }
+    if ((Find-Id 'NamesToggle').GetCurrentPattern([System.Windows.Automation.TogglePattern]::Pattern).Current.ToggleState -ne [System.Windows.Automation.ToggleState]::Off) { throw 'Filename preference did not survive restart.' }
+    [System.Windows.Forms.SendKeys]::SendWait('{ESC}')
+    Copy-Item (Join-Path $smokeRoot 'settings.json') artifacts/qa/restored-settings.json
+    Start-Sleep -Seconds 2
     $rectangle = $window.Current.BoundingRectangle
     $bitmap = [System.Drawing.Bitmap]::new([int]$rectangle.Width,[int]$rectangle.Height)
     $graphics = [System.Drawing.Graphics]::FromImage($bitmap)
     $graphics.CopyFromScreen([int]$rectangle.X,[int]$rectangle.Y,0,0,$bitmap.Size)
     $bitmap.Save((Join-Path (Get-Location) 'artifacts/qa/startup.png'))
     $graphics.Dispose(); $bitmap.Dispose()
-    'PASS: native window, indexed fixture grid, search, selection, favorites, cached folder navigation and offline preparation work through Windows UI Automation.' | Set-Content artifacts/qa/result.txt
+    'PASS: native window, 260-item continuous scrolling and image recycling, search, selection, favorites, albums, cached folders, offline preparation and view preference restart work through Windows UI Automation.' | Set-Content artifacts/qa/result.txt
 } catch {
     $log = Join-Path (Split-Path $exe) 'startup-error.txt'
     if (Test-Path $log) { Get-Content $log; Copy-Item $log artifacts/qa/startup-error.txt }

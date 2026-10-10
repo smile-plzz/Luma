@@ -45,7 +45,7 @@ public sealed partial class MediaCache
     private static string OrderValue(MediaSort sort) => sort switch
     {
         MediaSort.Name => "m.relative_path COLLATE NOCASE", MediaSort.Largest => "m.length",
-        MediaSort.Captured => "COALESCE(d.taken_ticks,m.modified_ticks)", MediaSort.Type => "m.kind COLLATE NOCASE", _ => "m.modified_ticks"
+        MediaSort.Captured => "COALESCE(d.taken_ticks,m.modified_ticks)", MediaSort.Type => "luma_extension(m.relative_path) COLLATE NOCASE", _ => "m.modified_ticks"
     };
     private static void QueryParameters(SqliteCommand cmd, LibraryQuery query)
     {
@@ -66,6 +66,7 @@ public sealed partial class MediaCache
     {
         if (query.Offset < 0 || query.Limit is < 1 or > 500) throw new ArgumentOutOfRangeException(nameof(query));
         await using var db = new SqliteConnection(connectionString); await db.OpenAsync(ct);
+        db.CreateFunction<string,string>("luma_extension",path => Path.GetExtension(path).ToLowerInvariant(),isDeterministic:true);
         await using var tx = (SqliteTransaction)await db.BeginTransactionAsync(ct);
         await using var cmd = db.CreateCommand(); cmd.Transaction = tx; QueryParameters(cmd,query);
         var value = OrderValue(query.Sort);
