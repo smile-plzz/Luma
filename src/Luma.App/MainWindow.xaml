@@ -45,15 +45,15 @@
    </Grid>
    <StackPanel Grid.Row="1" Orientation="Horizontal" Spacing="8">
     <ComboBox x:Name="SortBox" SelectedIndex="4" SelectionChanged="FilterChanged" AutomationProperties.Name="Sort order" MinWidth="145"><x:String>Date modified</x:String><x:String>Oldest modified</x:String><x:String>Name</x:String><x:String>File size</x:String><x:String>Date taken</x:String><x:String>File type</x:String></ComboBox>
-    <ToggleButton x:Name="DescendingButton" Content="↓" IsChecked="True" Click="DirectionChanged" AutomationProperties.Name="Descending order"/>
+    <ToggleButton x:Name="DescendingButton" Content="↓" IsChecked="True" Checked="DirectionChanged" Unchecked="DirectionChanged" AutomationProperties.Name="Descending order"/>
     <Button Content="View" AutomationProperties.Name="Gallery view options"><Button.Flyout><Flyout><StackPanel Width="260" Spacing="10">
      <ComboBox x:Name="GroupBox" AutomationProperties.AutomationId="GroupBox" Header="Group by" SelectedIndex="2" SelectionChanged="GroupChanged"><x:String>None</x:String><x:String>Year</x:String><x:String>Month</x:String><x:String>Day</x:String></ComboBox>
      <Slider x:Name="ThumbnailSlider" AutomationProperties.AutomationId="ThumbnailSlider" Header="Thumbnail size" Minimum="120" Maximum="320" Value="190" StepFrequency="10" ValueChanged="ThumbnailSizeChanged"/>
-     <CheckBox x:Name="NamesToggle" AutomationProperties.AutomationId="NamesToggle" Content="Show filenames" Click="AppearanceChanged"/><CheckBox x:Name="DetailsToggle" Content="Show dates and size" Click="AppearanceChanged"/><CheckBox x:Name="FitToggle" Content="Fit entire image" Click="AppearanceChanged"/><CheckBox x:Name="CompactToggle" Content="Compact spacing" Click="AppearanceChanged"/>
-     <CheckBox x:Name="CommonToggle" Content="Everyday formats only" IsChecked="True" Click="ContentFilterChanged"/><CheckBox x:Name="RecursiveToggle" Content="Include nested folders" IsChecked="True" Click="ContentFilterChanged"/>
+     <CheckBox x:Name="NamesToggle" AutomationProperties.AutomationId="NamesToggle" Content="Show filenames" Checked="AppearanceChanged" Unchecked="AppearanceChanged"/><CheckBox x:Name="DetailsToggle" Content="Show dates and size" Checked="AppearanceChanged" Unchecked="AppearanceChanged"/><CheckBox x:Name="FitToggle" Content="Fit entire image" Checked="AppearanceChanged" Unchecked="AppearanceChanged"/><CheckBox x:Name="CompactToggle" Content="Compact spacing" Checked="AppearanceChanged" Unchecked="AppearanceChanged"/>
+     <CheckBox x:Name="CommonToggle" Content="Everyday formats only" IsChecked="True" Checked="ContentFilterChanged" Unchecked="ContentFilterChanged"/><CheckBox x:Name="RecursiveToggle" Content="Include nested folders" IsChecked="True" Checked="ContentFilterChanged" Unchecked="ContentFilterChanged"/>
     </StackPanel></Flyout></Button.Flyout></Button>
     <ComboBox x:Name="DateJump" PlaceholderText="Jump to month" SelectionChanged="JumpDate" Width="145" AutomationProperties.Name="Jump to month"/>
-    <Button Content="Reset" Click="ResetFilters"/><ToggleButton x:Name="InspectorToggle" AutomationProperties.AutomationId="InspectorToggle" Content="Details" Click="InspectorChanged"/>
+    <Button Content="Reset" Click="ResetFilters"/><ToggleButton x:Name="InspectorToggle" AutomationProperties.AutomationId="InspectorToggle" Content="Details" Checked="InspectorChanged" Unchecked="InspectorChanged"/>
    </StackPanel>
    <InfoBar x:Name="Notice" Grid.Row="2" IsOpen="False" IsClosable="True"/>
    <Grid Grid.Row="3">

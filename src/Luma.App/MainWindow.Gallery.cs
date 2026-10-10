@@ -161,7 +161,7 @@ public sealed partial class MainWindow
         if(anchor is not null) MediaGrid.ScrollIntoView(anchor,ScrollIntoViewAlignment.Leading);
     }
     private async void ContentFilterChanged(object sender,RoutedEventArgs e)
-    { settings.CommonOnly=CommonToggle.IsChecked==true; settings.IncludeDescendants=RecursiveToggle.IsChecked==true; settings.Save(); await Guard(Refresh); }
+    { if(!ready)return; settings.CommonOnly=CommonToggle.IsChecked==true; settings.IncludeDescendants=RecursiveToggle.IsChecked==true; settings.Save(); await Guard(Refresh); }
     private async void JumpDate(object sender,SelectionChangedEventArgs e)
     {
         if(!ready || DateJump.SelectedItem is not string month) return;
@@ -176,7 +176,7 @@ public sealed partial class MainWindow
         ready=false; SearchBox.Text=""; FolderFilter.Text=""; AlbumsBox.SelectedItem=null; Sources.SelectedIndex=0; Navigation.SelectedIndex=0; ready=true;
         Heading.Text="Library"; beforeTicks=null; await Guard(Refresh);
     }
-    private void InspectorChanged(object sender,RoutedEventArgs e) => Inspector.Visibility=InspectorToggle.IsChecked==true ? Visibility.Visible : Visibility.Collapsed;
+    private void InspectorChanged(object sender,RoutedEventArgs e) { if(ready) Inspector.Visibility=InspectorToggle.IsChecked==true ? Visibility.Visible : Visibility.Collapsed; }
     private void GalleryWheel(object sender,PointerRoutedEventArgs e)
     {
         if(!Microsoft.UI.Input.InputKeyboardSource.GetKeyStateForCurrentThread(global::Windows.System.VirtualKey.Control).HasFlag(global::Windows.UI.Core.CoreVirtualKeyStates.Down))return;
