@@ -31,6 +31,9 @@ public sealed class WindowsTests
             using var cache = new ThumbnailCache(cacheRoot);
             var service = new ThumbnailService(cache, resolver, new WindowsThumbnailGenerator());
             Assert.NotNull(await service.GetAsync(media));
+            var metadata = await new WindowsMetadataReader().ReadAsync(path,"photo",CancellationToken.None);
+            Assert.Equal(256,metadata.Width); Assert.Equal(256,metadata.Height);
+            Assert.Null(metadata.TakenTicks);
             File.Delete(path);
             Assert.NotNull(await service.GetAsync(media));
         }

@@ -28,9 +28,9 @@ public sealed partial class MainWindow : Window
     private bool preparing, clearing;
     private bool ready, scanning, operation;
     private string sourceSignature = "";
-    private int offset;
+
     private long total;
-    private List<MediaCard> cards = new();
+    private readonly System.Collections.ObjectModel.ObservableCollection<MediaCard> cards = new();
     private readonly DispatcherTimer availabilityTimer = new() { Interval = TimeSpan.FromSeconds(30) };
     private nint Handle => WinRT.Interop.WindowNative.GetWindowHandle(this);
     private string? SelectedSource => (Sources.SelectedItem as SourceChoice)?.Id;
@@ -53,29 +53,33 @@ public sealed partial class MainWindow : Window
         if (ready) return;
         await Guard(async () =>
         {
+            if (AppSettings.IsSmokeTest) { settings.ThumbnailSize=140; settings.ShowNames=true; }
             ApplyTheme();
             await Task.Run(() => catalog.InitializeAsync());
             cache = await Task.Run(() => new ThumbnailCache(Path.Combine(AppSettings.LocalRoot, "thumbnails"), Math.Clamp(settings.CacheGiB, 1, 32) * 1024L * 1024 * 1024));
             thumbnails = new(cache, resolver, new WindowsThumbnailGenerator());
             if (AppSettings.IsSmokeTest) await SeedSmokeFixtures();
-            await LoadSources(); ready = true; availabilityTimer.Start(); await Refresh();
+            await LoadSources(); await LoadAlbums(); ApplyViewSettings(); ready = true; availabilityTimer.Start(); await Refresh();
         });
     }
     private async Task SeedSmokeFixtures()
     {
         var folder = Path.Combine(AppSettings.LocalRoot, "Fixture originals"); Directory.CreateDirectory(folder);
         Directory.CreateDirectory(Path.Combine(folder, "Trips"));
-        for (int index = 0; index < 8; index++)
+        for (int index = 0; index < 260; index++)
         {
-            using var writer = new BinaryWriter(File.Create(Path.Combine(index == 7 ? Path.Combine(folder, "Trips") : folder, $"fixture{index:00}.bmp")));
+            using var writer = new BinaryWriter(File.Create(Path.Combine(index == 7 ? Path.Combine(folder, "Trips") : folder, $"fixture{index:000}.bmp")));
             writer.Write((ushort)0x4D42); writer.Write(54 + 256 * 256 * 3); writer.Write(0); writer.Write(54);
             writer.Write(40); writer.Write(256); writer.Write(256); writer.Write((ushort)1); writer.Write((ushort)24);
             writer.Write(0); writer.Write(256 * 256 * 3); writer.Write(0); writer.Write(0); writer.Write(0); writer.Write(0);
             for (int y = 0; y < 256; y++) for (int x = 0; x < 256; x++)
             { writer.Write((byte)(80 + index * 15)); writer.Write((byte)y); writer.Write((byte)x); }
+            writer.Dispose();
+            File.SetLastWriteTimeUtc(Path.Combine(index == 7 ? Path.Combine(folder,"Trips") : folder,$"fixture{index:000}.bmp"),new DateTime(2026,9,30,12,0,0,DateTimeKind.Utc).AddDays(-index));
         }
         var source = resolver.Register(folder);
         await Task.Run(() => catalog.ScanAsync(source.Id, folder));
+        await Task.Run(() => catalog.EnrichAsync(new WindowsMetadataReader(),source.Id));
     }
 
     private async void OnClosed(object sender, WindowEventArgs args)
@@ -101,81 +105,15 @@ public sealed partial class MainWindow : Window
         var all = await Task.Run(() => catalog.SourcesAsync());
         var signature = string.Join(";", all.Select(s => s.Id + s.IsOnline));
         var changed = signature != sourceSignature; sourceSignature = signature;
+        var labels = await catalog.SourceLabelsAsync();
         var choices = new List<SourceChoice> { new(null, "All sources") };
-        choices.AddRange(all.Select(s => new SourceChoice(s.Id, $"{(s.IsOnline ? "●" : "○")} {s.RootPath}")));
+        choices.AddRange(all.Select(s => new SourceChoice(s.Id, $"{(s.IsOnline ? "●" : "○")} {(labels.TryGetValue(s.Id, out var label) && label.Length > 0 ? label : s.RootPath)}")));
         var wasReady = ready; ready = false;
         Sources.ItemsSource = choices;
         Sources.SelectedItem = choices.FirstOrDefault(s => s.Id == selected) ?? choices[0];
         ready = wasReady;
-        if (ready && changed && !scanning) await Refresh();
+        if (ready && changed && !scanning) Notify("Drive availability changed. Choose Reset or navigate to refresh the gallery.");
     }
-    private async Task Refresh()
-    {
-        if (!ready) return;
-        queryCancellation?.Cancel(); var cts = new CancellationTokenSource(); queryCancellation = cts; var ct = cts.Token;
-        var nav = Navigation.SelectedIndex;
-        var query = new LibraryQuery(SelectedSource, SearchBox.Text.Trim(), nav == 2 ? "photo" : nav == 3 ? "video" : null,
-            nav == 4, (MediaSort)Math.Max(0, SortBox.SelectedIndex), offset, 120, FolderFilter.Text.Trim());
-        Busy.IsActive = true;
-        try
-        {
-            var page = await Task.Run(() => catalog.QueryAsync(query, ct), ct); ct.ThrowIfCancellationRequested();
-            total = page.Total; cards = page.Items.Select(i => new MediaCard(i)).ToList();
-            if (nav == 1)
-            {
-                var view = new CollectionViewSource { IsSourceGrouped = true, Source = cards.GroupBy(c => c.Month).ToList() };
-                MediaGrid.ItemsSource = view.View;
-            }
-            else MediaGrid.ItemsSource = cards;
-            EmptyState.Visibility = cards.Count == 0 ? Visibility.Visible : Visibility.Collapsed;
-            EmptyTitle.Text = total == 0 && string.IsNullOrEmpty(SearchBox.Text) ? "A home for your media" : "No matches here";
-            EmptyText.Text = "Add a source, rescan, or adjust your search and filters. Cached media remains browsable when a drive is offline.";
-            PreviousButton.IsEnabled = offset > 0; NextButton.IsEnabled = offset + 120 < total;
-            PageText.Text = $"{offset / 120 + 1} / {Math.Max(1, (total + 119) / 120)}";
-            if (!scanning && !preparing) Status.Text = $"{total:N0} items · {cards.Count:N0} on this page";
-            await LoadFolders(ct);
-            await LoadThumbnails(cards, ct);
-        }
-        catch (OperationCanceledException) { }
-        finally { if (queryCancellation == cts) Busy.IsActive = scanning || preparing; }
-    }
-    private async Task LoadThumbnails(IEnumerable<MediaCard> items, CancellationToken ct)
-    {
-        foreach (var card in items)
-        {
-            ct.ThrowIfCancellationRequested();
-            if (clearing) return;
-            var bytes = await UseCache(() => thumbnails!.GetAsync(card.Item.Media, 256, ct));
-            if (bytes is null) continue;
-            ct.ThrowIfCancellationRequested();
-            try
-            {
-                using var stream = new InMemoryRandomAccessStream();
-                using (var writer = new DataWriter(stream.GetOutputStreamAt(0))) { writer.WriteBytes(bytes); await writer.StoreAsync(); await writer.FlushAsync(); }
-                stream.Seek(0); var bitmap = new BitmapImage(); await bitmap.SetSourceAsync(stream); card.Thumbnail = bitmap;
-            }
-            catch (Exception ex) when (ex is not OperationCanceledException) { /* Unsupported/corrupt cache entry stays a placeholder. */ }
-        }
-    }
-    private async void NavigationChanged(object sender, SelectionChangedEventArgs e)
-    {
-        if (!ready) return; Heading.Text = Navigation.SelectedItem?.ToString() ?? "All media";
-        if (Navigation.SelectedIndex == 1) SortBox.SelectedIndex = 0;
-        offset = 0; await Guard(Refresh);
-    }
-    private async void FilterChanged(object sender, SelectionChangedEventArgs e)
-    {
-        if (!ready) return;
-        if (ReferenceEquals(sender, Sources)) { FolderFilter.Text = ""; CoverageText.Text = "Check coverage before disconnecting a drive."; }
-        offset = 0; await Guard(Refresh);
-    }
-    private async void SearchChanged(object sender, TextChangedEventArgs e)
-    {
-        if (!ready) return; searchCancellation?.Cancel(); var cts = new CancellationTokenSource(); searchCancellation = cts;
-        try { await Task.Delay(300, cts.Token); offset = 0; await Guard(Refresh); } catch (OperationCanceledException) { }
-    }
-    private async void PreviousPage(object sender, RoutedEventArgs e) { offset = Math.Max(0, offset - 120); await Guard(Refresh); }
-    private async void NextPage(object sender, RoutedEventArgs e) { if (offset + 120 < total) { offset += 120; await Guard(Refresh); } }
     private async Task<string?> PickFolder()
     {
         var picker = new FolderPicker(); picker.FileTypeFilter.Add("*"); WinRT.Interop.InitializeWithWindow.Initialize(picker, Handle);
@@ -205,13 +143,16 @@ public sealed partial class MainWindow : Window
                 var progress = new Progress<int>(n => Status.Text = $"Indexing {n:N0} items · {source.RootPath}");
                 count += await Task.Run(() => catalog.ScanAsync(source.Id, source.RootPath, scanCancellation.Token, progress));
             }
-            Notify($"Scan complete: {count:N0} media files. Thumbnails are cached as you browse.");
+            Status.Text = "Reading capture dates and dimensions…";
+            await Task.Run(() => catalog.EnrichAsync(new WindowsMetadataReader(), SelectedSource, scanCancellation.Token,
+                new Progress<int>(n => DispatcherQueue.TryEnqueue(() => Status.Text = $"Metadata · {n:N0} updated"))));
+            Notify($"Scan complete: {count:N0} media files. Metadata is saved for offline browsing.");
         }
         finally
         {
             scanning = false; Busy.IsActive = false; CancelButton.Visibility = Visibility.Collapsed;
             AddSourceButton.IsEnabled = RescanButton.IsEnabled = true;
-            await LoadSources(); offset = 0; await Refresh();
+            await LoadSources(); await Refresh();
         }
     }
     private void CancelScan(object sender, RoutedEventArgs e) { scanCancellation?.Cancel(); preparationCancellation?.Cancel(); }
@@ -219,13 +160,16 @@ public sealed partial class MainWindow : Window
     {
         if (scanning) return; var id = SelectedSource; if (id is null) { Notify("Select a single source first."); return; }
         if (!await Confirm("Remove source?", "This removes its catalog entries and tags. Original files and cached thumbnail files are untouched.", "Remove source")) return;
-        await Task.Run(() => catalog.RemoveSourceAsync(id)); await LoadSources(); offset = 0; await Refresh();
+        await Task.Run(() => catalog.RemoveSourceAsync(id)); await LoadSources(); await Refresh();
     }, true);
     private void SelectionChanged(object sender, SelectionChangedEventArgs e)
     {
-        var card = Selected;
-        SelectionText.Text = card is null ? "Select media to see details" : $"{MediaGrid.SelectedItems.Count} selected · {card.Item.Media.RelativePath} · {card.Item.Media.Length / 1024d:N0} KB";
-        TagsBox.Text = card?.Item.Tags ?? ""; FavoriteButton.Content = card?.Item.Favorite == true ? "★ Unfavorite" : "☆ Favorite";
+        var card = Selected; var selected = MediaGrid.SelectedItems.Cast<MediaCard>().ToArray();
+        SelectionBar.Visibility = selected.Length > 0 ? Visibility.Visible : Visibility.Collapsed;
+        SelectionCount.Text = $"{selected.Length:N0} selected";
+        var meta = card?.Item.Metadata;
+        SelectionText.Text = card is null ? "Select media to inspect" : $"{card.Name}\n\n{card.Item.Media.RelativePath}\n\n{card.Item.Media.Length / 1024d:N0} KB · {card.Item.Media.Kind}\n{meta?.Width} × {meta?.Height}\n{(meta?.DurationSeconds > 0 ? TimeSpan.FromSeconds(meta.DurationSeconds).ToString() : "")}\n\n{card.Date:dd MMM yyyy HH:mm}\n{meta?.DateOrigin}\n\n{(card.Item.Media.IsAvailable ? "Source connected" : "Offline preview · reconnect to open original")}";
+        TagsBox.Text = card?.Item.Tags ?? ""; FavoriteButton.Content = selected.Length > 0 && selected.All(c => c.Item.Favorite) ? "★ Unfavorite" : "☆ Favorite";
     }
     private void GridRightTapped(object sender, RightTappedRoutedEventArgs e)
     {
@@ -239,6 +183,7 @@ public sealed partial class MainWindow : Window
         var root = resolver.ResolveRoot(media.SourceId) ?? throw new IOException("This drive is offline. Reconnect it to use the original file.");
         var path = SourcePaths.Combine(root, media.RelativePath);
         if (!File.Exists(path)) throw new FileNotFoundException("This file has moved or been deleted. Rescan the source.");
+        if (!MediaCache.VersionMatches(path, media)) throw new IOException("This file changed. Rescan the source before using the original.");
         return path;
     }
     private Task Open()
@@ -272,29 +217,10 @@ public sealed partial class MainWindow : Window
     private async void CutSelected(object sender, RoutedEventArgs e) => await Guard(() => Copy(true), true);
     private async Task Paste()
     {
-        if (scanning) { Notify("Wait for indexing to finish before moving files."); return; }
-        var data = Clipboard.GetContent(); if (!data.Contains(StandardDataFormats.StorageItems)) { Notify("Copy or cut files first."); return; }
-        var items = await data.GetStorageItemsAsync();
-        if (items.Any(i => i is not StorageFile)) throw new NotSupportedException("Luma pastes files only. Use Explorer to move folders.");
+        var data = Clipboard.GetContent();
+        if (!data.Contains(StandardDataFormats.StorageItems)) { Notify("Copy or cut files first."); return; }
         var destination = await PickFolder(); if (destination is null) return;
-        var paths = items.Select(i => i.Path).ToArray();
-        if (data.Contains("Luma.FileSelection.v1"))
-        {
-            var descriptors = JsonSerializer.Deserialize<CachedMedia[]>((string)await data.GetDataAsync("Luma.FileSelection.v1"))
-                ?? throw new IOException("Clipboard file information is unavailable. Copy the files again.");
-            paths = descriptors.Select(media =>
-            {
-                var path = Resolve(media); var info = new FileInfo(path);
-                if (info.Length != media.Length || info.LastWriteTimeUtc.Ticks != media.ModifiedTicks)
-                    throw new IOException("A selected file changed. Rescan and copy it again before pasting.");
-                return path;
-            }).ToArray();
-        }
-        if (paths.Any(string.IsNullOrWhiteSpace)) throw new NotSupportedException("Paste requires local files.");
-        var move = data.RequestedOperation.HasFlag(DataPackageOperation.Move);
-        if (ShellFiles.Run(Handle, move ? 1u : 2u, paths, destination))
-        { data.ReportOperationCompleted(move ? DataPackageOperation.Move : DataPackageOperation.Copy); if (move) Clipboard.Clear(); }
-        await RescanCurrent();
+        await TransferData(data, destination, data.RequestedOperation.HasFlag(DataPackageOperation.Move));
     }
     private async void PasteSelected(object sender, RoutedEventArgs e) => await Guard(Paste, true);
     private async Task Delete()
@@ -314,8 +240,9 @@ public sealed partial class MainWindow : Window
         var original = Resolve(media); var target = Path.Combine(Path.GetDirectoryName(original)!, name);
         File.Move(original, target); // Never overwrite a different file.
         var renamed = media with { RelativePath = Path.Combine(Path.GetDirectoryName(media.RelativePath) ?? "", name) };
-        await catalog.AnnotateAsync(renamed, Selected.Item.Favorite, Selected.Item.Tags);
-        await RescanCurrent();
+        try { await catalog.RelocateAsync(media, renamed); }
+        catch { Notify("File renamed, but catalog update failed. Keep the old catalog; restore the filename in Explorer before retrying.", true); throw; }
+        await LoadAlbums(); await Refresh();
     }
     private async void RenameSelected(object sender, RoutedEventArgs e) => await Guard(Rename, true);
     private async void ToggleFavorite(object sender, RoutedEventArgs e) => await Guard(async () =>
@@ -327,8 +254,10 @@ public sealed partial class MainWindow : Window
     }, true);
     private async void SaveTags(object sender, RoutedEventArgs e) => await Guard(async () =>
     {
-        if (Selected is null) return;
-        await catalog.AnnotateAsync(Selected.Item.Media, Selected.Item.Favorite, TagsBox.Text); await Refresh();
+        var selected = MediaGrid.SelectedItems.Cast<MediaCard>().ToArray();
+        if (selected.Length > 1 && !await Confirm("Replace tags on selected files?", $"Replace tags for {selected.Length} selected items with the entered list.", "Save tags")) return;
+        foreach (var card in selected) await catalog.AnnotateAsync(card.Item.Media, card.Item.Favorite, TagsBox.Text);
+        await Refresh();
     }, true);
     private async Task<bool> Confirm(string title, string message, string action)
     {
@@ -363,5 +292,5 @@ public sealed partial class MainWindow : Window
     private async void PasteShortcut(KeyboardAccelerator sender, KeyboardAcceleratorInvokedEventArgs e) { if (HandleShortcut(e)) await Guard(Paste, true); }
     private async void DeleteShortcut(KeyboardAccelerator sender, KeyboardAcceleratorInvokedEventArgs e) { if (HandleShortcut(e)) await Guard(Delete, true); }
     private async void RenameShortcut(KeyboardAccelerator sender, KeyboardAcceleratorInvokedEventArgs e) { if (HandleShortcut(e)) await Guard(Rename, true); }
-    private void SelectShortcut(KeyboardAccelerator sender, KeyboardAcceleratorInvokedEventArgs e) { if (HandleShortcut(e)) MediaGrid.SelectAll(); }
+    private void SelectShortcut(KeyboardAccelerator sender, KeyboardAcceleratorInvokedEventArgs e) { if (HandleShortcut(e)) { MediaGrid.SelectAll(); Notify($"Selected {cards.Count:N0} loaded items. Use Select all matching results in the context menu for the entire result set."); } }
 }
