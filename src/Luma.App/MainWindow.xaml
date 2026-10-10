@@ -63,7 +63,7 @@
      <GridView.GroupStyle><GroupStyle><GroupStyle.HeaderTemplate><DataTemplate><TextBlock Text="{Binding Key}" FontSize="22" FontWeight="SemiBold" Margin="5,20,0,10"/></DataTemplate></GroupStyle.HeaderTemplate></GroupStyle></GridView.GroupStyle>
      <GridView.ItemTemplate><DataTemplate>
       <StackPanel Width="{Binding TileWidth}" Margin="{Binding Spacing}" Spacing="5" Opacity="{Binding CutOpacity}" AutomationProperties.Name="{Binding Name}" ToolTipService.ToolTip="{Binding Name}">
-       <Grid Height="{Binding TileHeight}" Background="{ThemeResource LayerFillColorDefaultBrush}" CornerRadius="6"><FontIcon Glyph="&#xEB9F;" Opacity="0.2" FontSize="28"/><Image Source="{Binding Thumbnail}" Stretch="{Binding Fit}"/><Border Background="#88000000" VerticalAlignment="Bottom" HorizontalAlignment="Left" CornerRadius="3" Padding="5,2"><TextBlock Text="{Binding State}" Foreground="White" FontSize="10"/></Border></Grid>
+       <Grid Height="{Binding TileHeight}" Background="{ThemeResource LayerFillColorDefaultBrush}" CornerRadius="6"><FontIcon Glyph="&#xEB9F;" Opacity="0.2" FontSize="28"/><Image Source="{Binding Thumbnail}" Stretch="{Binding Fit}"/><Border Visibility="{Binding StatusVisibility}" Background="#88000000" VerticalAlignment="Bottom" HorizontalAlignment="Left" CornerRadius="3" Padding="5,2"><TextBlock Text="{Binding State}" Foreground="White" FontSize="10"/></Border></Grid>
        <TextBlock Text="{Binding Name}" Visibility="{Binding Labels}" FontSize="12" TextTrimming="CharacterEllipsis"/>
        <TextBlock Text="{Binding Caption}" Visibility="{Binding Details}" FontSize="10" Opacity="0.6"/>
       </StackPanel>

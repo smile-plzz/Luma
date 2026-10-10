@@ -13,6 +13,7 @@ public sealed class MediaCard(LibraryItem item, AppSettings settings) : INotifyP
     public string Group => Date.ToString(settings.GroupIndex switch { 1 => "yyyy", 3 => "dddd, d MMMM yyyy", _ => "MMMM yyyy" });
     public string Caption => $"{Date:dd MMM yyyy} · {Item.Media.Length / 1024d:N0} KB";
     public string State => (Item.Favorite ? "★  " : "") + (Item.Media.Kind == "video" ? "VIDEO  " : "") + (Item.Media.IsAvailable ? "" : "Offline");
+    public Visibility StatusVisibility => string.IsNullOrWhiteSpace(State) ? Visibility.Collapsed : Visibility.Visible;
     public double TileWidth => settings.ThumbnailSize;
     public double TileHeight => settings.ThumbnailSize * 0.75;
     public Thickness Spacing => new(settings.Compact ? 2 : 5);
