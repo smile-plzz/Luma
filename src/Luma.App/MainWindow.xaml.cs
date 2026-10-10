@@ -105,7 +105,7 @@ public sealed partial class MainWindow : Window
         var selected = SelectedSource;
         var all = await Task.Run(() => catalog.SourcesAsync());
         var labels = await catalog.SourceLabelsAsync();
-        var signature = string.Join(";", all.Select(s => s.Id + s.IsOnline + (labels.TryGetValue(s.Id,out var label) ? label : "")));
+        var signature = string.Join(";", all.Select(s => s.Id + s.IsOnline + s.RootPath + (labels.TryGetValue(s.Id,out var label) ? label : "")));
         var changed = signature != sourceSignature; sourceSignature = signature;
         if(!changed && Sources.ItemsSource is not null) return;
         var choices = new List<SourceChoice> { new(null, "All sources") };
@@ -136,6 +136,7 @@ public sealed partial class MainWindow : Window
     {
         scanning = true; scanCancellation = new(); Busy.IsActive = true; CancelButton.Visibility = Visibility.Visible;
         AddSourceButton.IsEnabled = RescanButton.IsEnabled = false;
+        bool published = false;
         try
         {
             int count = 0;
@@ -145,17 +146,18 @@ public sealed partial class MainWindow : Window
                 var progress = new Progress<int>(n => Status.Text = $"Indexing {n:N0} items · {source.RootPath}");
                 count += await Task.Run(() => catalog.ScanAsync(source.Id, source.RootPath, scanCancellation.Token, progress));
             }
-            Status.Text = "Reading capture dates and dimensions…";
+            await LoadSources(); await Refresh(); published = true;
+            Status.Text = "Library available · reading capture dates and dimensions…";
             var metadataSource = SelectedSource;
             await Task.Run(() => catalog.EnrichAsync(new WindowsMetadataReader(), metadataSource, scanCancellation.Token,
                 new Progress<int>(n => DispatcherQueue.TryEnqueue(() => Status.Text = $"Metadata · {n:N0} updated"))));
-            Notify($"Scan complete: {count:N0} media files. Metadata is saved for offline browsing.");
+            Notify($"Scan complete: {count:N0} media files. Metadata saved. Navigate or Reset to apply new dates without shifting your current view.");
         }
         finally
         {
             scanning = false; Busy.IsActive = false; CancelButton.Visibility = Visibility.Collapsed;
             AddSourceButton.IsEnabled = RescanButton.IsEnabled = true;
-            await LoadSources(); await Refresh();
+            await LoadSources(); if(!published && ready) await Refresh();
         }
     }
     private void CancelScan(object sender, RoutedEventArgs e) { scanCancellation?.Cancel(); preparationCancellation?.Cancel(); }
@@ -226,7 +228,7 @@ public sealed partial class MainWindow : Window
         var data = Clipboard.GetContent();
         if (!data.Contains(StandardDataFormats.StorageItems)) { Notify("Copy or cut files first."); return; }
         var destination = await PickFolder(); if (destination is null) return;
-        await TransferData(data, destination, data.RequestedOperation.HasFlag(DataPackageOperation.Move));
+        await TransferData(data, destination, data.RequestedOperation.HasFlag(DataPackageOperation.Move), true);
     }
     private async void PasteSelected(object sender, RoutedEventArgs e) => await Guard(Paste, true);
     private async Task Delete()

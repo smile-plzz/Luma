@@ -19,8 +19,9 @@ public sealed partial class MediaCache
         while (await reader.ReadAsync(ct))
         {
             var id = reader.GetString(0);
-            list.Add(new(id, reader.GetString(1), DateTime.Parse(reader.GetString(2), null,
-                System.Globalization.DateTimeStyles.RoundtripKind), sourceResolver?.ResolveRoot(id) is not null));
+            var currentRoot=sourceResolver?.ResolveRoot(id);
+            list.Add(new(id, currentRoot ?? reader.GetString(1), DateTime.Parse(reader.GetString(2), null,
+                System.Globalization.DateTimeStyles.RoundtripKind), currentRoot is not null));
         }
         return list;
     }

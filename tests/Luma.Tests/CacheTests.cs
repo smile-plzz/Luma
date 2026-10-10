@@ -334,6 +334,16 @@ public sealed class CacheTests : IDisposable
 
     private sealed class LongProgress(Action<long> callback) : IProgress<long> { public void Report(long value) => callback(value); }
 
+    [Fact] public async Task SourceListShowsCurrentMountPathAfterReconnect()
+    {
+        var first=Path.Combine(root,"first"); var second=Path.Combine(root,"second"); Directory.CreateDirectory(first);
+        File.WriteAllBytes(Path.Combine(first,"a.jpg"),new byte[4]);
+        var resolver=new Resolver { Root=first }; var catalog=new MediaCache(Path.Combine(root,"catalog.db"),resolver);
+        await catalog.InitializeAsync(); await catalog.ScanAsync("source",first);
+        Directory.Move(first,second); resolver.Root=second;
+        Assert.Equal(second,Assert.Single(await catalog.SourcesAsync()).RootPath);
+    }
+
     private sealed class CallbackProgress(Action<int> callback) : IProgress<int> { public void Report(int value) => callback(value); }
 
     private sealed class Resolver : ISourceResolver

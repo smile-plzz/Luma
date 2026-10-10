@@ -185,9 +185,14 @@ public sealed partial class MainWindow
     private async void SelectAllMatching(object sender,RoutedEventArgs e) => await Guard(async () =>
     {
         if(!await Confirm("Select all matching results?",$"Load and select {total:N0} matching items. File actions will affect this full selection.","Select all"))return;
-        var generation=queryCancellation;
-        while(!exhausted && ready && generation==queryCancellation) { if(loading) { await Task.Delay(50); continue; } await LoadMore(); }
-        if(generation!=queryCancellation) { Notify("Selection cancelled because the active filters changed."); return; }
-        MediaGrid.SelectAll();
+        var generation=queryCancellation; scanCancellation=new(); CancelButton.Visibility=Visibility.Visible;
+        try
+        {
+            while(!exhausted && ready && generation==queryCancellation && !scanCancellation.IsCancellationRequested)
+            { if(loading) { await Task.Delay(50); continue; } await LoadMore(); }
+            if(generation!=queryCancellation || scanCancellation.IsCancellationRequested) { Notify("Full-result selection cancelled. No files were changed."); return; }
+            MediaGrid.SelectAll();
+        }
+        finally { CancelButton.Visibility=Visibility.Collapsed; }
     },true);
 }

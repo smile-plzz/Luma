@@ -96,7 +96,7 @@ try {
     $search.GetCurrentPattern([System.Windows.Automation.ValuePattern]::Pattern).SetValue('fixture003')
     Start-Sleep -Seconds 1
     Select-Card 'fixture003.bmp'
-    (Find-Id 'InspectorToggle').GetCurrentPattern([System.Windows.Automation.TogglePattern]::Pattern).Toggle()
+    (Wait-Control 'Details').GetCurrentPattern([System.Windows.Automation.TogglePattern]::Pattern).Toggle()
     (Wait-Control 'Add to album…').GetCurrentPattern([System.Windows.Automation.InvokePattern]::Pattern).Invoke()
     (Wait-Control 'Add').GetCurrentPattern([System.Windows.Automation.InvokePattern]::Pattern).Invoke()
     Start-Sleep -Seconds 1
@@ -106,7 +106,7 @@ try {
     Start-Sleep -Seconds 1
     Wait-Control 'fixture003.bmp' | Out-Null
     if (Find-Control 'fixture000.bmp') { throw 'Album included a file that was not added.' }
-    (Find-Id 'InspectorToggle').GetCurrentPattern([System.Windows.Automation.TogglePattern]::Pattern).Toggle()
+    (Wait-Control 'Details').GetCurrentPattern([System.Windows.Automation.TogglePattern]::Pattern).Toggle()
     (Wait-Control 'Reset').GetCurrentPattern([System.Windows.Automation.InvokePattern]::Pattern).Invoke()
     Wait-Control 'fixture000.bmp' | Out-Null
     # Select the registered fixture source; folder navigation uses saved catalog data.
@@ -183,6 +183,15 @@ try {
     $graphics.Dispose(); $bitmap.Dispose()
     'PASS: native window, 260-item continuous scrolling and image recycling, search, selection, favorites, albums, cached folders, offline preparation and view preference restart work through Windows UI Automation.' | Set-Content artifacts/qa/result.txt
 } catch {
+    if ($window) {
+        $window.FindAll([System.Windows.Automation.TreeScope]::Descendants,[System.Windows.Automation.Condition]::TrueCondition) | ForEach-Object { "$($_.Current.AutomationId) | $($_.Current.Name)" } | Set-Content artifacts/qa/failure-controls.txt
+        $rect=$window.Current.BoundingRectangle
+        if ($rect.Width -gt 0 -and $rect.Height -gt 0) {
+            $bmp=[System.Drawing.Bitmap]::new([int]$rect.Width,[int]$rect.Height)
+            $g=[System.Drawing.Graphics]::FromImage($bmp); $g.CopyFromScreen([int]$rect.X,[int]$rect.Y,0,0,$bmp.Size)
+            $bmp.Save((Join-Path (Get-Location) 'artifacts/qa/failure.png')); $g.Dispose(); $bmp.Dispose()
+        }
+    }
     $log = Join-Path (Split-Path $exe) 'startup-error.txt'
     if (Test-Path $log) { Get-Content $log; Copy-Item $log artifacts/qa/startup-error.txt }
     Get-WinEvent -FilterHashtable @{LogName='Application'; StartTime=(Get-Date).AddMinutes(-5)} -ErrorAction SilentlyContinue |

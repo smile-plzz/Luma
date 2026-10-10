@@ -19,7 +19,7 @@ These tests use small fixtures. They do not establish UI responsiveness or 100,0
 - Benchmark cold scan, warm thumbnail browsing, memory, eviction and 100k media items before selecting UI paging defaults.
 - Verify default-app opening, clipboard interoperability, rename and native copy/move/delete dialogs on disposable files. These are implemented but their native shell interactions still need real-PC acceptance.
 
-## Validation
+## Phase 2 validation baseline
 
 The suite contains 26 core tests (run on both Windows and Linux) and 2 Windows integration tests. It covers cache restart/eviction/concurrency, offline behavior, identity resolution, Unicode source folders, changed serial rejection, real bitmap decoding, catalog paging/search/annotations, completed-scan reconciliation and transaction rollback during cancellation/disconnect.
 
@@ -40,3 +40,5 @@ Before a general release, manually prepare a multi-page removable source, cancel
 ## Gallery redesign coverage
 
 See [GALLERY_BUILD.md](GALLERY_BUILD.md) for the current implementation and limits. The gallery suite adds ten cursor sort/direction cases, seven metadata/organization/transfer regressions, and three catalog scale cases (1k/10k/100k). The native smoke now uses 260 fixtures, scrolls to the end and back without paging buttons, records peak decoded images, then performs the existing offline preparation/disconnection sequence. Windows integration also checks BMP/JPEG/PNG decoding, dimensions and missing capture-date fallback. Native smoke additionally creates/populates an album and checks view preferences after restarting the isolated library. Consult the exact gallery PR run for final counts and outcomes.
+
+The current gallery suite contains 47 core test cases (including three scale cases) and four Windows integration cases. A source-list regression also checks that reconnecting under a different mount path updates the displayed path. Core cases run on both Windows and Linux. Native UI smoke is an additional independent gate.

@@ -132,7 +132,7 @@ public sealed partial class MainWindow
         var media=MediaGrid.SelectedItems.Cast<MediaCard>().Select(c=>c.Item.Media).ToArray();
         await TransferPaths(media.Select(Resolve).ToArray(),media,destination,move);
     }
-    private async Task TransferData(DataPackageView data,string destination,bool move)
+    private async Task TransferData(DataPackageView data,string destination,bool move,bool clearClipboard=false)
     {
         var items=await data.GetStorageItemsAsync();
         if(items.Any(i=>i is not StorageFile))throw new NotSupportedException("Transfer files only. Add folders as sources.");
@@ -140,7 +140,7 @@ public sealed partial class MainWindow
         if(data.Contains("Luma.FileSelection.v1"))media=JsonSerializer.Deserialize<CachedMedia[]>((string)await data.GetDataAsync("Luma.FileSelection.v1")) ?? [];
         var paths=media.Length>0 ? media.Select(Resolve).ToArray() : items.Select(i=>i.Path).ToArray();
         if(await TransferPaths(paths,media,destination,move))
-        { data.ReportOperationCompleted(move ? DataPackageOperation.Move : DataPackageOperation.Copy); if(move) { Clipboard.Clear(); pendingCutIds.Clear(); foreach(var card in cards)card.IsCut=false; } }
+        { data.ReportOperationCompleted(move ? DataPackageOperation.Move : DataPackageOperation.Copy); if(move && clearClipboard) { Clipboard.Clear(); pendingCutIds.Clear(); foreach(var card in cards)card.IsCut=false; } }
     }
     private async Task<bool> TransferPaths(string[] paths,CachedMedia[] media,string destination,bool move)
     {

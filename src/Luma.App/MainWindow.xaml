@@ -47,18 +47,18 @@
     <ComboBox x:Name="SortBox" SelectedIndex="4" SelectionChanged="FilterChanged" AutomationProperties.Name="Sort order" MinWidth="145"><x:String>Date modified</x:String><x:String>Oldest modified</x:String><x:String>Name</x:String><x:String>File size</x:String><x:String>Date taken</x:String><x:String>File type</x:String></ComboBox>
     <ToggleButton x:Name="DescendingButton" Content="↓" IsChecked="True" Click="DirectionChanged" AutomationProperties.Name="Descending order"/>
     <Button Content="View" AutomationProperties.Name="Gallery view options"><Button.Flyout><Flyout><StackPanel Width="260" Spacing="10">
-     <ComboBox x:Name="GroupBox" Header="Group by" SelectedIndex="2" SelectionChanged="GroupChanged"><x:String>None</x:String><x:String>Year</x:String><x:String>Month</x:String><x:String>Day</x:String></ComboBox>
-     <Slider x:Name="ThumbnailSlider" Header="Thumbnail size" Minimum="120" Maximum="320" Value="190" StepFrequency="10" ValueChanged="ThumbnailSizeChanged"/>
-     <CheckBox x:Name="NamesToggle" Content="Show filenames" Click="AppearanceChanged"/><CheckBox x:Name="DetailsToggle" Content="Show dates and size" Click="AppearanceChanged"/><CheckBox x:Name="FitToggle" Content="Fit entire image" Click="AppearanceChanged"/><CheckBox x:Name="CompactToggle" Content="Compact spacing" Click="AppearanceChanged"/>
+     <ComboBox x:Name="GroupBox" AutomationProperties.AutomationId="GroupBox" Header="Group by" SelectedIndex="2" SelectionChanged="GroupChanged"><x:String>None</x:String><x:String>Year</x:String><x:String>Month</x:String><x:String>Day</x:String></ComboBox>
+     <Slider x:Name="ThumbnailSlider" AutomationProperties.AutomationId="ThumbnailSlider" Header="Thumbnail size" Minimum="120" Maximum="320" Value="190" StepFrequency="10" ValueChanged="ThumbnailSizeChanged"/>
+     <CheckBox x:Name="NamesToggle" AutomationProperties.AutomationId="NamesToggle" Content="Show filenames" Click="AppearanceChanged"/><CheckBox x:Name="DetailsToggle" Content="Show dates and size" Click="AppearanceChanged"/><CheckBox x:Name="FitToggle" Content="Fit entire image" Click="AppearanceChanged"/><CheckBox x:Name="CompactToggle" Content="Compact spacing" Click="AppearanceChanged"/>
      <CheckBox x:Name="CommonToggle" Content="Everyday formats only" IsChecked="True" Click="ContentFilterChanged"/><CheckBox x:Name="RecursiveToggle" Content="Include nested folders" IsChecked="True" Click="ContentFilterChanged"/>
     </StackPanel></Flyout></Button.Flyout></Button>
     <ComboBox x:Name="DateJump" PlaceholderText="Jump to month" SelectionChanged="JumpDate" Width="145" AutomationProperties.Name="Jump to month"/>
-    <Button Content="Reset" Click="ResetFilters"/><ToggleButton x:Name="InspectorToggle" Content="Details" Click="InspectorChanged"/>
+    <Button Content="Reset" Click="ResetFilters"/><ToggleButton x:Name="InspectorToggle" AutomationProperties.AutomationId="InspectorToggle" Content="Details" Click="InspectorChanged"/>
    </StackPanel>
    <InfoBar x:Name="Notice" Grid.Row="2" IsOpen="False" IsClosable="True"/>
    <Grid Grid.Row="3">
     <Grid.ColumnDefinitions><ColumnDefinition Width="*"/><ColumnDefinition Width="Auto"/></Grid.ColumnDefinitions>
-    <GridView x:Name="MediaGrid" SelectionMode="Extended" IsItemClickEnabled="False" DoubleTapped="GridDoubleTapped" SelectionChanged="SelectionChanged" RightTapped="GridRightTapped" ScrollViewer.HorizontalScrollBarVisibility="Disabled" ContainerContentChanging="TileChanging" Loaded="GalleryLoaded" CanDragItems="True" DragItemsStarting="StartDrag" PointerWheelChanged="GalleryWheel">
+    <GridView x:Name="MediaGrid" AutomationProperties.AutomationId="MediaGrid" SelectionMode="Extended" IsItemClickEnabled="False" DoubleTapped="GridDoubleTapped" SelectionChanged="SelectionChanged" RightTapped="GridRightTapped" ScrollViewer.HorizontalScrollBarVisibility="Disabled" ContainerContentChanging="TileChanging" Loaded="GalleryLoaded" CanDragItems="True" DragItemsStarting="StartDrag" PointerWheelChanged="GalleryWheel">
      <GridView.ItemsPanel><ItemsPanelTemplate><ItemsWrapGrid Orientation="Horizontal"/></ItemsPanelTemplate></GridView.ItemsPanel>
      <GridView.GroupStyle><GroupStyle><GroupStyle.HeaderTemplate><DataTemplate><TextBlock Text="{Binding Key}" FontSize="22" FontWeight="SemiBold" Margin="5,20,0,10"/></DataTemplate></GroupStyle.HeaderTemplate></GroupStyle></GridView.GroupStyle>
      <GridView.ItemTemplate><DataTemplate>

@@ -22,7 +22,7 @@ Everyday formats include JPEG/JPG, PNG, HEIC/HEIF, GIF, WebP, BMP, MP4 and MOV. 
 
 ## Timeline metadata
 
-Scanning discovers files first and then enriches changed versions with Windows image/video properties. **Drive tools → Refresh metadata** enriches older catalogs without a full scan. Completed metadata survives cancellation and is retained offline. Unchanged versions are not decoded repeatedly.
+Scanning discovers files first, makes the gallery available, and then enriches changed versions with Windows image/video properties. Enrichment completion does not jump or reorder the active gallery; navigate or Reset to apply new dates. **Drive tools → Refresh metadata** enriches older catalogs without a full scan. Completed metadata survives cancellation and is retained offline. Unchanged versions are not decoded repeatedly.
 
 Photos use the date taken reported by Windows when plausible. The original camera timezone is not verified, and that limitation is shown in the inspector. Video encoding dates are not labeled capture dates; videos use modification time for timeline ordering. Dimensions, orientation and duration are stored when available. Missing or unsupported properties fall back explicitly.
 
