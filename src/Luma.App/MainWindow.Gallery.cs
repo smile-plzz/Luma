@@ -127,8 +127,13 @@ public sealed partial class MainWindow
     private async void NavigationChanged(object sender,SelectionChangedEventArgs e)
     {
         if(!ready) return; Heading.Text=Navigation.SelectedItem?.ToString() ?? "Library";
-        if(Navigation.SelectedIndex == 1) { settings.SortIndex=4; SortBox.SelectedIndex=4; if(settings.GroupIndex==0) settings.GroupIndex=2; }
-        AlbumsBox.SelectedItem=null; beforeTicks=null; await Guard(Refresh);
+        ready=false;
+        if(Navigation.SelectedIndex == 1)
+        {
+            settings.SortIndex=4; SortBox.SelectedIndex=4;
+            if(settings.GroupIndex==0) { settings.GroupIndex=2; GroupBox.SelectedIndex=2; }
+        }
+        AlbumsBox.SelectedItem=null; ready=true; settings.Save(); beforeTicks=null; await Guard(Refresh);
     }
     private async void FilterChanged(object sender,SelectionChangedEventArgs e)
     {

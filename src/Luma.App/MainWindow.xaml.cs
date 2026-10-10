@@ -173,7 +173,9 @@ public sealed partial class MainWindow : Window
         SelectionBar.Visibility = selected.Length > 0 ? Visibility.Visible : Visibility.Collapsed;
         SelectionCount.Text = $"{selected.Length:N0} selected";
         var meta = card?.Item.Metadata;
-        SelectionText.Text = card is null ? "Select media to inspect" : $"{card.Name}\n\n{card.Item.Media.RelativePath}\n\n{card.Item.Media.Length / 1024d:N0} KB · {card.Item.Media.Kind}\n{meta?.Width} × {meta?.Height}\n{(meta?.DurationSeconds > 0 ? TimeSpan.FromSeconds(meta.DurationSeconds).ToString() : "")}\n\n{card.Date:dd MMM yyyy HH:mm}\n{meta?.DateOrigin}\n\n{(card.Item.Media.IsAvailable ? "Source connected" : "Offline preview · reconnect to open original")}";
+        var dimensions=meta?.Width > 0 && meta.Height > 0 ? $"{meta.Width} × {meta.Height}" : "Dimensions unavailable";
+        var taken=meta?.TakenTicks is long ticks ? new DateTime(ticks,DateTimeKind.Utc).ToLocalTime().ToString("dd MMM yyyy HH:mm") : "Unavailable";
+        SelectionText.Text = card is null ? "Select media to inspect" : $"{card.Name}\n\n{card.Item.Media.RelativePath}\n\n{card.Item.Media.Length / 1024d:N0} KB · {card.Item.Media.Kind}\n{dimensions}\n{(meta?.DurationSeconds > 0 ? TimeSpan.FromSeconds(meta.DurationSeconds).ToString() : "")}\n\nTaken: {taken}\nModified: {new DateTime(card.Item.Media.ModifiedTicks,DateTimeKind.Utc).ToLocalTime():dd MMM yyyy HH:mm}\n{meta?.DateOrigin}\n\n{(card.Item.Media.IsAvailable ? "Source connected" : "Offline preview · reconnect to open original")}";
         TagsBox.Text = card?.Item.Tags ?? ""; FavoriteButton.Content = selected.Length > 0 && selected.All(c => c.Item.Favorite) ? "★ Unfavorite" : "☆ Favorite";
     }
     private void GridRightTapped(object sender, RightTappedRoutedEventArgs e)
