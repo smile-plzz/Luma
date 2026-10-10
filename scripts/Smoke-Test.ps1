@@ -27,7 +27,12 @@ try {
     }
     function Find-Id([string]$Id) {
         $condition=[System.Windows.Automation.PropertyCondition]::new([System.Windows.Automation.AutomationElement]::AutomationIdProperty,$Id)
-        return $window.FindFirst([System.Windows.Automation.TreeScope]::Descendants,$condition)
+        for ($j = 0; $j -lt 100; $j++) {
+            $found=$window.FindFirst([System.Windows.Automation.TreeScope]::Descendants,$condition)
+            if ($found) { return $found }
+            Start-Sleep -Milliseconds 100
+        }
+        throw "Control did not become available: $Id"
     }
     function Select-Card([string]$Name) {
         $item=Wait-Control $Name; $pattern=$null
