@@ -33,7 +33,7 @@ public sealed partial class MediaCache
         LEFT JOIN metadata d ON d.source_id=m.source_id AND d.relative_path=m.relative_path AND d.length=m.length AND d.modified_ticks=m.modified_ticks
         WHERE ($source IS NULL OR m.source_id=$source) AND ($kind IS NULL OR m.kind=$kind)
         AND ($favorites=0 OR a.favorite=1)
-        AND ($memoryDay IS NULL OR (d.taken_ticks IS NOT NULL AND luma_memory(d.taken_ticks,$memoryDay)=1))
+        AND ($memoryDay IS NULL OR (d.taken_ticks IS NOT NULL AND luma_memory(d.taken_ticks)=1))
         AND ($search='' OR m.relative_path LIKE $search ESCAPE '\' OR a.tags LIKE $search ESCAPE '\')
         AND ($folder='' OR m.relative_path LIKE $folder ESCAPE '\')
         AND ($recursive=1 OR instr(substr(m.relative_path,length($prefix)+1),$separator)=0)
@@ -51,10 +51,10 @@ public sealed partial class MediaCache
     };
     private static void QueryParameters(SqliteCommand cmd, LibraryQuery query)
     {
-        cmd.Connection!.CreateFunction<long?,string?,bool>("luma_memory", (ticks, day) =>
+        var reference=query.MemoriesOn.GetValueOrDefault();
+        cmd.Connection!.CreateFunction<long?,bool>("luma_memory", ticks =>
         {
-            if (ticks is null || day is null || ticks.Value < DateTime.MinValue.Ticks || ticks.Value > DateTime.MaxValue.Ticks) return false;
-            var reference = DateOnly.ParseExact(day,"yyyy-MM-dd",System.Globalization.CultureInfo.InvariantCulture);
+            if (ticks is null || query.MemoriesOn is null || ticks.Value < DateTime.MinValue.Ticks || ticks.Value > DateTime.MaxValue.Ticks) return false;
             var taken = new DateTime(ticks.Value,DateTimeKind.Utc).ToLocalTime();
             return taken.Year < reference.Year && taken.Month == reference.Month && taken.Day == reference.Day;
         });
@@ -144,7 +144,7 @@ public sealed partial class MediaCache
         await using var db = new SqliteConnection(connectionString); await db.OpenAsync(ct);
         await using var transaction = (SqliteTransaction)await db.BeginTransactionAsync(ct);
         await using var cmd = db.CreateCommand(); cmd.Transaction = transaction;
-        cmd.CommandText = "DELETE FROM scan_media WHERE source_id=$id; DELETE FROM scan_folders WHERE source_id=$id; DELETE FROM scan_jobs WHERE source_id=$id; DELETE FROM album_items WHERE media_id IN(SELECT id FROM media_ids WHERE source_id=$id); DELETE FROM media_ids WHERE source_id=$id; DELETE FROM metadata WHERE source_id=$id; DELETE FROM source_labels WHERE source_id=$id; DELETE FROM annotations WHERE source_id=$id; DELETE FROM media WHERE source_id=$id; DELETE FROM sources WHERE id=$id;";
+        cmd.CommandText = "DELETE FROM scan_warnings WHERE source_id=$id; DELETE FROM scan_media WHERE source_id=$id; DELETE FROM scan_folders WHERE source_id=$id; DELETE FROM scan_jobs WHERE source_id=$id; DELETE FROM album_items WHERE media_id IN(SELECT id FROM media_ids WHERE source_id=$id); DELETE FROM media_ids WHERE source_id=$id; DELETE FROM metadata WHERE source_id=$id; DELETE FROM source_labels WHERE source_id=$id; DELETE FROM annotations WHERE source_id=$id; DELETE FROM media WHERE source_id=$id; DELETE FROM sources WHERE id=$id;";
         cmd.Parameters.AddWithValue("$id", id); await cmd.ExecuteNonQueryAsync(ct); await transaction.CommitAsync(ct);
     }
 }

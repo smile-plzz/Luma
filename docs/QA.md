@@ -66,3 +66,9 @@ Two regressions hold an actual scan transaction open while querying capture-date
 ## Catalog-first reconnect regression
 
 Two additional core tests cover reopening saved sources across a fresh catalog instance without resolver calls or scan progress, preservation of organization, deferred discovery of external changes until explicit rescan, and reuse of empty registered sources. This raises the core suite to 51 cases per OS. Native smoke uses drive-status refresh for simulated disconnect/reconnect, verifies the exact selected card and scroll position survive, and checks that a newly added file is not silently indexed. Physical USB timing and varied Windows hardware still need user acceptance.
+
+## Resumable indexing and memories follow-up
+
+New automated cases exercise checkpoint reuse after restart/mount change, cancellation and disconnect without partial publication, completed-folder invalidation, checkpoint discard/removal, overlapping scanner exclusion, organization retention, offline capture-date memories, cursor traversal and filters, stale metadata and exact leap-day matching. The native desktop smoke now enters On this day with the source offline, verifies a previous-year capture fixture and excludes files without capture metadata. This follow-up's final run and artifact are recorded in TESTING_HANDOFF.md after verification.
+
+On the physical bench, interrupt a large multi-folder import, close and reopen Luma, reconnect the HDD (including a new drive letter), and choose Resume indexing. Verify saved progress, stable albums/favorites and final totals. Repeat with a large flat folder. Check Indexing report for protected folders. Try another date in memories, then disconnect and verify prepared previews. Test the source's actual filesystem and camera-date conventions; synthetic CI cannot certify those.

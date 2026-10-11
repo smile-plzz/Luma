@@ -162,6 +162,14 @@ public sealed partial class MainWindow : Window
         if(connected.Length==0) { Notify("Reconnect a drive with paused indexing to resume."); return; }
         await Scan(connected);
     },true);
+    private async void ShowIndexingReport(object sender,RoutedEventArgs e) => await Guard(async () =>
+    {
+        var checkpoints=await catalog.IndexingCheckpointsAsync();
+        var warnings=await catalog.IndexingWarningsAsync();
+        var lines=checkpoints.Select(c=>$"Paused: {c.MediaCount:N0} file records, {c.CompletedFolders:N0} completed folders ({c.SourceId})")
+            .Concat(warnings.Select(w=>$"Skipped {w.Folder} ({w.SourceId}): {w.Message}"));
+        await new ContentDialog { XamlRoot=Root.XamlRoot,Title="Indexing report",Content=new ScrollViewer { MaxHeight=400,Content=new TextBlock { Text=lines.Any() ? string.Join("\n\n",lines) : "No paused indexing or skipped folders.",TextWrapping=TextWrapping.Wrap } },CloseButtonText="Close" }.ShowAsync();
+    },true);
     private async void RestartIndexing(object sender,RoutedEventArgs e) => await Guard(async () =>
     {
         if(SelectedSource is not string id) { Notify("Select a single source first."); return; }
@@ -205,7 +213,8 @@ public sealed partial class MainWindow : Window
             foreach (var metadataSource in scannedIds)
             await Task.Run(() => catalog.EnrichAsync(new WindowsMetadataReader(), metadataSource, scanCancellation.Token,
                 new Progress<int>(n => DispatcherQueue.TryEnqueue(() => Status.Text = $"Metadata · {n:N0} updated"))));
-            Notify($"Scan complete: {count:N0} media files. Metadata saved. Navigate or Reset to apply new dates without shifting your current view.");
+            var warnings=(await catalog.IndexingWarningsAsync()).Count(w=>scannedIds.Contains(w.SourceId));
+            Notify(warnings>0 ? $"Indexed {count:N0} media files; {warnings} inaccessible folder(s) skipped. Older catalog entries were retained. See Drive tools → Indexing report, fix access, then rescan." : $"Scan complete: {count:N0} media files. Metadata saved. Navigate or Reset to apply new dates without shifting your current view.");
         }
         catch(OperationCanceledException)
         {

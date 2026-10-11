@@ -2,11 +2,13 @@ using Microsoft.Data.Sqlite;
 
 namespace Luma.Core;
 
+public sealed record IndexingWarning(string SourceId, string Folder, string Message);
 public sealed record IndexingCheckpoint(string SourceId, long MediaCount, long CompletedFolders);
 
 public sealed partial class MediaCache
 {
     private const string ScanSchema = """
+        CREATE TABLE IF NOT EXISTS scan_warnings(source_id TEXT NOT NULL,folder TEXT NOT NULL,message TEXT NOT NULL,PRIMARY KEY(source_id,folder));
         CREATE TABLE IF NOT EXISTS scan_jobs(source_id TEXT PRIMARY KEY);
         CREATE TABLE IF NOT EXISTS scan_folders(source_id TEXT NOT NULL,path TEXT NOT NULL,done INTEGER NOT NULL DEFAULT 0,stamp INTEGER NOT NULL DEFAULT 0,PRIMARY KEY(source_id,path));
         CREATE TABLE IF NOT EXISTS scan_media(source_id TEXT NOT NULL,relative_path TEXT NOT NULL,folder TEXT NOT NULL,length INTEGER NOT NULL,modified_ticks INTEGER NOT NULL,kind TEXT NOT NULL,PRIMARY KEY(source_id,relative_path));
@@ -24,13 +26,22 @@ public sealed partial class MediaCache
         return result;
     }
 
+    public async Task<IReadOnlyList<IndexingWarning>> IndexingWarningsAsync(CancellationToken ct = default)
+    {
+        await using var db=new SqliteConnection(connectionString); await db.OpenAsync(ct);
+        await using var cmd=db.CreateCommand(); cmd.CommandText="SELECT source_id,folder,message FROM scan_warnings ORDER BY source_id,folder";
+        var result=new List<IndexingWarning>(); await using var reader=await cmd.ExecuteReaderAsync(ct);
+        while(await reader.ReadAsync(ct)) result.Add(new(reader.GetString(0),reader.GetString(1),reader.GetString(2)));
+        return result;
+    }
+
     // The OS releases this lease after a crash. Staging and the published catalog are separate.
     private FileStream IndexingLease() => new(Path.GetFullPath(databasePath) + ".indexing.lock", FileMode.OpenOrCreate, FileAccess.ReadWrite, FileShare.None);
 
     public async Task DiscardIndexingAsync(string sourceId, CancellationToken ct = default)
     {
         using var lease = IndexingLease();
-        await ExecuteAsync(ClearScan,ct,("$id",sourceId));
+        await ExecuteAsync(ClearScan + "DELETE FROM scan_warnings WHERE source_id=$id;",ct,("$id",sourceId));
     }
 
     // Completed folders are skipped; an interrupted folder re-enumerates names but reuses
@@ -71,7 +82,7 @@ public sealed partial class MediaCache
             await Sql(ClearScan);
         await using(var tx=db.BeginTransaction())
         {
-            await Sql("INSERT OR IGNORE INTO sources VALUES($id,$root,$seen); INSERT OR IGNORE INTO scan_jobs VALUES($id); INSERT OR IGNORE INTO scan_folders(source_id,path) VALUES($id,'');",tx,
+            await Sql("DELETE FROM scan_warnings WHERE source_id=$id AND NOT EXISTS(SELECT 1 FROM scan_jobs WHERE source_id=$id); INSERT OR IGNORE INTO sources VALUES($id,$root,$seen); INSERT OR IGNORE INTO scan_jobs VALUES($id); INSERT OR IGNORE INTO scan_folders(source_id,path) VALUES($id,'');",tx,
                 ("$root",root),("$seen",DateTime.UtcNow.ToString("O")));
             await tx.CommitAsync(ct);
         }
@@ -85,6 +96,8 @@ public sealed partial class MediaCache
                 folder=await cmd.ExecuteScalarAsync(ct) as string;
             }
             if(folder is null) break;
+            try
+            {
             var directory=Path.Combine(root,folder);
             if(new DirectoryInfo(directory).Attributes.HasFlag(FileAttributes.ReparsePoint))
                 throw new IOException("Indexing paused: a queued folder became a link. Restart indexing to exclude it.");
@@ -139,6 +152,14 @@ public sealed partial class MediaCache
                 await Sql("UPDATE scan_folders SET done=1,stamp=$stamp WHERE source_id=$id AND path=$path",tx,("$stamp",stamp),("$path",folder));
                 await tx.CommitAsync(ct);
             }
+            }
+            catch(UnauthorizedAccessException ex)
+            {
+                VerifySource();
+                await using var tx=db.BeginTransaction();
+                await Sql("INSERT OR REPLACE INTO scan_warnings VALUES($id,$folder,$message); UPDATE scan_folders SET done=1,stamp=0 WHERE source_id=$id AND path=$folder",tx,("$folder",folder),("$message",ex.Message));
+                await tx.CommitAsync(ct);
+            }
         }
         VerifySource();
         var total=checked((int)await Sql("SELECT COUNT(*) FROM scan_media WHERE source_id=$id"));
@@ -147,7 +168,7 @@ public sealed partial class MediaCache
             await Sql("""
                 INSERT INTO media SELECT source_id,relative_path,length,modified_ticks,kind FROM scan_media WHERE source_id=$id
                 ON CONFLICT(source_id,relative_path) DO UPDATE SET length=excluded.length,modified_ticks=excluded.modified_ticks,kind=excluded.kind;
-                DELETE FROM media WHERE source_id=$id AND relative_path NOT IN(SELECT relative_path FROM scan_media WHERE source_id=$id);
+                DELETE FROM media WHERE source_id=$id AND NOT EXISTS(SELECT 1 FROM scan_warnings WHERE source_id=$id) AND relative_path NOT IN(SELECT relative_path FROM scan_media WHERE source_id=$id);
                 INSERT OR IGNORE INTO media_ids SELECT lower(hex(randomblob(16))),source_id,relative_path FROM media WHERE source_id=$id;
                 UPDATE sources SET root_path=$root,last_seen=$seen WHERE id=$id;
                 """ + ClearScan,tx,("$root",root),("$seen",DateTime.UtcNow.ToString("O")));

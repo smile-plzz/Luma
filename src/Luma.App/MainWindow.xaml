@@ -39,6 +39,7 @@
        <Button x:Name="RescanButton" Content="Rescan sources" Click="Rescan"/>
        <Button x:Name="ResumeIndexingButton" Content="Resume indexing" Click="ResumeIndexing" Visibility="Collapsed"/>
        <TextBlock x:Name="IndexingHint" FontSize="11" TextWrapping="Wrap" Visibility="Collapsed"/>
+       <Button Content="Indexing report" Click="ShowIndexingReport"/>
        <Button Content="Restart selected indexing" Click="RestartIndexing"/>
        <Button Content="Refresh metadata" Click="RefreshMetadata"/>
        <Button Content="Rename source label" Click="RenameSourceLabel"/>

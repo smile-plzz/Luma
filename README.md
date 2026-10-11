@@ -59,3 +59,7 @@ dotnet publish src/Luma.App/Luma.App.csproj -c Release -r win-x64 -p:Platform=x6
 Core tests also run on Linux. GitHub Actions builds the app, runs Windows integration tests, verifies its native window and uploads build/test evidence. See the specific workflow result before treating a binary as validated.
 
 [Gallery build guide](docs/GALLERY_BUILD.md) · [Phase 2 guide](docs/PHASE_2.md) · [Gallery redesign plan](docs/GALLERY_REDESIGN.md) · [Roadmap](docs/ROADMAP.md) · [Phase 1 scope and limits](docs/PHASE_1.md) · [External-drive design](docs/EXTERNAL_DRIVES.md) · [QA](docs/QA.md)
+
+### Indexing recovery and memories
+
+Interrupted imports save progress on your PC. Use **Drive tools → Resume indexing** after reconnecting; **Restart selected indexing** starts fresh and **Indexing report** lists skipped folders. Your published gallery remains available while indexing finishes. **On this day** brings together matching capture dates from earlier years and works with saved offline previews. [Usage and limits](docs/GALLERY_BUILD.md#resumable-indexing).
