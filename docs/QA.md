@@ -2,6 +2,10 @@
 
 ## Current verified shipment
 
+[Run 38151631336](https://github.com/smile-plzz/Luma/actions/runs/38151631336), commit `4e31cf2d0b6473a4dc51fdbc4cada0915912cb17`: all jobs passed. 51 core cases pass on each of Windows and Linux, four Windows integrations pass, and the complete desktop smoke passes. Its reconnect evidence verifies selection and scroll retention and no silent discovery of a new file. PR #8 is merged. See [the current handoff](TESTING_HANDOFF.md) for the verified ZIP.
+
+## UI refinement shipment
+
 [Run 38114261821](https://github.com/smile-plzz/Luma/actions/runs/38114261821), commit `55df818d8e0c2234681af2eb6962e735e2d90689`: all jobs passed. 49 core tests pass on Windows and Linux, four Windows integration cases pass, and the packaged desktop passes the complete UI smoke including theme switching. PR #7 is merged. Light/dark screenshots were inspected; physical-drive confirmation of the reported import issue remains pending.
 
 ## Original gallery shipment

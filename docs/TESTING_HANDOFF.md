@@ -1,8 +1,11 @@
 # Luma: shipment and real-life testing
 
-Development closeout: 11 October 2026 (Asia/Dhaka). The portable gallery milestone is merged into `main` through PR #6, followed by the shipped refinements in [PR #7](https://github.com/smile-plzz/Luma/pull/7). Real-life testing and everyday use now guide further refinements. This is a testing shipment, not a claim that physical-device acceptance is complete.
+Development closeout: 11 October 2026 (Asia/Dhaka). The portable gallery milestone is merged into `main` through PR #6, followed by UI/import refinements in PR #7 and the shipped reconnect optimization in [PR #8](https://github.com/smile-plzz/Luma/pull/8). Real-life testing and everyday use now guide further refinements. This is a testing shipment, not a claim that physical-device acceptance is complete.
 
 ## What changed in this shipment
+
+- Known drives reopen from their saved catalog without scanning, including empty registered folders. Reconnect updates availability and visible missing previews while retaining selection and scroll. New or changed files are discovered with explicit **Rescan sources**.
+- Metadata enrichment after a scan is limited to the sources actually scanned.
 
 - Fixed the gallery read transaction that caused SQLite lock errors while a long external-drive scan was running. Regression checks cover concurrent browsing with both scan completion and cancellation.
 - Refined light/dark surfaces, rounded controls, toolbar, typography and photo tiles; folder controls appear when a source is selected.
@@ -15,14 +18,14 @@ Development closeout: 11 October 2026 (Asia/Dhaka). The portable gallery milesto
 | --- | --- |
 | Platform | Windows 10 2004+ / Windows 11, x64 |
 | Package | Unsigned, self-contained portable ZIP; no installer |
-| Download | [Luma-Gallery-win-x64](https://github.com/smile-plzz/Luma/actions/runs/38114261821/artifacts/11692931505) |
-| Tested source | `55df818d8e0c2234681af2eb6962e735e2d90689` |
-| Merge commit | `21d91f22427dfbfe3886ff0997847d6f72eb8bd3` |
-| Automated evidence | [Successful run 38114261821](https://github.com/smile-plzz/Luma/actions/runs/38114261821) |
-| Desktop evidence | [Screenshots, settings and smoke results](https://github.com/smile-plzz/Luma/actions/runs/38114261821/artifacts/11693520268) |
-| ZIP SHA-256 | `4130bd10748736396dfda97f3bbad5874573329ea8246e9691e7f3a24571b9e1` |
+| Download | [Luma-Gallery-win-x64](https://github.com/smile-plzz/Luma/actions/runs/38151631336/artifacts/11706981282) |
+| Tested source | `4e31cf2d0b6473a4dc51fdbc4cada0915912cb17` |
+| Merge commit | `a106e8dcd68d75772d7892d13abb1f7b99cac4bc` |
+| Automated evidence | [Successful run 38151631336](https://github.com/smile-plzz/Luma/actions/runs/38151631336) |
+| Desktop evidence | [Screenshots, settings and smoke results](https://github.com/smile-plzz/Luma/actions/runs/38151631336/artifacts/11707290632) |
+| ZIP SHA-256 | `01b0f3ca6525a9a8f77203c9174819127dae63260cc32791ef918171e5a0e3dc` |
 
-49 core tests passed on Windows and Linux, four Windows integration tests passed, and the packaged app passed native desktop automation. The UI run covers continuous scrolling across 260 fixtures and back, recycled images, search, favorites, albums, folders, offline preparation/disconnection view preferences after restart and theme switching. Light/dark screenshots were inspected. Catalog-only scale tests cover 1k/10k/100k records.
+51 core tests passed on Windows and Linux, four Windows integration tests passed, and the packaged app passed native desktop automation. The UI run covers continuous scrolling across 260 fixtures and back, recycled images, search, favorites, albums, folders, offline preparation/disconnection view preferences after restart and theme switching. Light/dark screenshots were inspected. Native reconnect checks verified preserved selection/scroll and no automatic indexing of an added file. Catalog-only scale tests cover 1k/10k/100k records.
 
 GitHub may require sign-in to download an Actions artifact. This specific artifact is currently scheduled to expire on 9 January 2027; retain the downloaded ZIP. If unavailable, use a newer successful **Build and test** run on `main`, or run that workflow manually. Identify that newer run when reporting feedback. Executables and bundled runtime files are delivered as build artifacts; source, build automation, tests and documentation are versioned in Git.
 
