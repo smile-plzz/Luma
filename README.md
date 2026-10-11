@@ -23,6 +23,7 @@ Windows 10 version 2004+ or Windows 11, x64. The portable build bundles .NET and
 - Cached subfolder navigation with parent navigation, available offline without rescanning older libraries.
 - Bulk offline preview preparation with cancellation/resume, coverage and cache usage, and confirmed cache clearing.
 - PC-local SQLite catalog and bounded persistent thumbnails. Cached hits do not probe an external drive.
+- Catalog-first reopening of known drives, in-place reconnect status, and visible-preview retry without a full scan. Use **Rescan sources** explicitly for new or changed files.
 - Volume GUID/serial/folder identities that resolve a drive's current mount instead of trusting its old letter.
 - Light/dark/system themes and configurable cache limit (1–32 GiB, applied at restart).
 

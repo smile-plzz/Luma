@@ -58,3 +58,7 @@ The original gallery suite contained 47 core test cases (including three scale c
 The first real-drive report showed `SQLite Error 5: database is locked` while browsing during a long scan. `QueryAsync` used an immediate transaction despite executing only SELECTs, competing with the scanner for the writer slot. It now uses a deferred read snapshot; count and rows remain consistent while WAL allows the scan to write.
 
 Two regressions hold an actual scan transaction open while querying capture-date pages, cursor continuation, filtered album/favorites and month navigation. Queries must complete before the scanner is released, must see only committed rows, and must retain organization after either scan commit or cancellation. These raise core coverage to 49 cases per OS. Physical-drive confirmation remains pending.
+
+## Catalog-first reconnect regression
+
+Two additional core tests cover reopening saved sources across a fresh catalog instance without resolver calls or scan progress, preservation of organization, deferred discovery of external changes until explicit rescan, and reuse of empty registered sources. This raises the core suite to 51 cases per OS. Native smoke uses drive-status refresh for simulated disconnect/reconnect, verifies the exact selected card and scroll position survive, and checks that a newly added file is not silently indexed. Physical USB timing and varied Windows hardware still need user acceptance.

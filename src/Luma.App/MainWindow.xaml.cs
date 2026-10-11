@@ -29,6 +29,7 @@ public sealed partial class MainWindow : Window
     private bool preparing, clearing;
     private bool ready, scanning, operation;
     private string sourceSignature = "";
+    private bool checkingSources;
 
     private long total;
     private readonly System.Collections.ObjectModel.ObservableCollection<MediaCard> cards = new();
@@ -47,6 +48,11 @@ public sealed partial class MainWindow : Window
         AppWindow.MoveAndResize(new global::Windows.Graphics.RectInt32(work.X + (work.Width - width) / 2,
             work.Y + (work.Height - height) / 2, width, height));
         Closed += OnClosed;
+        Activated += async (_, e) =>
+        {
+            if (e.WindowActivationState != WindowActivationState.Deactivated && ready && !scanning && !operation)
+                await Guard(LoadSources);
+        };
         availabilityTimer.Tick += async (_, _) => { if (ready && !scanning && !operation) await Guard(async () => await LoadSources()); };
     }
     private async void OnLoaded(object sender, RoutedEventArgs e)
@@ -102,19 +108,34 @@ public sealed partial class MainWindow : Window
     { Notice.Message = text; Notice.Severity = error ? InfoBarSeverity.Error : InfoBarSeverity.Informational; Notice.IsOpen = true; }
     private async Task LoadSources()
     {
-        var selected = SelectedSource;
-        var all = await Task.Run(() => catalog.SourcesAsync());
-        var labels = await catalog.SourceLabelsAsync();
-        var signature = string.Join(";", all.Select(s => s.Id + s.IsOnline + s.RootPath + (labels.TryGetValue(s.Id,out var label) ? label : "")));
-        var changed = signature != sourceSignature; sourceSignature = signature;
-        if(!changed && Sources.ItemsSource is not null) return;
-        var choices = new List<SourceChoice> { new(null, "All sources") };
-        choices.AddRange(all.Select(s => new SourceChoice(s.Id, $"{(s.IsOnline ? "●" : "○")} {(labels.TryGetValue(s.Id, out var label) && label.Length > 0 ? label : s.RootPath)}")));
-        var wasReady = ready; ready = false;
-        Sources.ItemsSource = choices;
-        Sources.SelectedItem = choices.FirstOrDefault(s => s.Id == selected) ?? choices[0];
-        ready = wasReady;
-        if (ready && changed && !scanning) Notify("Drive availability changed. Choose Reset or navigate to refresh the gallery.");
+        if (checkingSources) return;
+        checkingSources = true;
+        try
+        {
+            var selected = SelectedSource;
+            var all = await Task.Run(() => catalog.SourcesAsync());
+            var labels = await catalog.SourceLabelsAsync();
+            var signature = string.Join(";", all.Select(s => s.Id + s.IsOnline + s.RootPath + (labels.TryGetValue(s.Id,out var label) ? label : "")));
+            var changed = signature != sourceSignature; sourceSignature = signature;
+            if(!changed && Sources.ItemsSource is not null) return;
+            var choices = new List<SourceChoice> { new(null, "All sources") };
+            choices.AddRange(all.Select(s => new SourceChoice(s.Id, $"{(s.IsOnline ? "●" : "○")} {(labels.TryGetValue(s.Id, out var label) && label.Length > 0 ? label : s.RootPath)}")));
+            var wasReady = ready; ready = false;
+            Sources.ItemsSource = choices;
+            Sources.SelectedItem = choices.FirstOrDefault(s => s.Id == selected) ?? choices[0];
+            ready = wasReady;
+            if (ready && changed)
+            {
+                var online = all.Where(s => s.IsOnline).Select(s => s.Id).ToHashSet();
+                foreach (var card in cards) card.SetAvailability(online.Contains(card.Item.Media.SourceId));
+                RefreshSelectionDetails();
+                // Preserve the collection, scroll and selection; only retry visible missing previews.
+                var retry = cards.Where(c => c.Realized && c.Thumbnail is null && c.Item.Media.IsAvailable).ToArray();
+                foreach (var card in retry) _ = LoadThumbnail(card);
+                if (!scanning) Notify("Drive status updated. Your saved library is ready.");
+            }
+        }
+        finally { checkingSources = false; }
     }
     private async Task<string?> PickFolder()
     {
@@ -124,31 +145,43 @@ public sealed partial class MainWindow : Window
     private async void AddSource(object sender, RoutedEventArgs e) => await Guard(async () =>
     {
         if (!ready) return; var folder = await PickFolder(); if (folder is null) return;
-        var source = await Task.Run(() => resolver.Register(folder)); await Scan(new[] { new SourceInfo(source.Id, source.RootPath, DateTime.UtcNow, true) });
+        var source = await Task.Run(() => resolver.Register(folder)); await Scan(new[] { new SourceInfo(source.Id, source.RootPath, DateTime.UtcNow, true) }, reuseExisting: true);
     }, true);
+    private async void RefreshDriveStatus(object sender, RoutedEventArgs e) => await Guard(LoadSources, true);
     private async void Rescan(object sender, RoutedEventArgs e) => await Guard(RescanCurrent, true);
     private async Task RescanCurrent()
     {
         var sources = await Task.Run(() => catalog.SourcesAsync());
         await Scan(sources.Where(s => (SelectedSource is null || s.Id == SelectedSource) && s.IsOnline));
     }
-    private async Task Scan(IEnumerable<SourceInfo> sources)
+    private async Task Scan(IEnumerable<SourceInfo> sources, bool reuseExisting = false)
     {
         scanning = true; scanCancellation = new(); Busy.IsActive = true; CancelButton.Visibility = Visibility.Visible;
         AddSourceButton.IsEnabled = RescanButton.IsEnabled = false;
         bool published = false;
         try
         {
-            int count = 0;
+            long count = 0;
+            var scannedIds = new List<string>();
             foreach (var source in sources)
             {
                 Status.Text = "Scanning " + source.RootPath;
                 var progress = new Progress<int>(n => Status.Text = $"Indexing {n:N0} items · {source.RootPath}");
-                count += await Task.Run(() => catalog.ScanAsync(source.Id, source.RootPath, scanCancellation.Token, progress));
+                var opened = reuseExisting
+                    ? await Task.Run(() => catalog.OpenSourceAsync(source.Id, source.RootPath, scanCancellation.Token, progress))
+                    : new SourceOpenResult(false, await Task.Run(() => catalog.ScanAsync(source.Id, source.RootPath, scanCancellation.Token, progress)));
+                count += opened.MediaCount;
+                if (!opened.UsedSavedCatalog) scannedIds.Add(source.Id);
             }
             await LoadSources(); await Refresh(); published = true;
+            if (scannedIds.Count == 0)
+            {
+                Status.Text = $"{count:N0} saved items · Ready";
+                Notify(reuseExisting ? $"Opened {count:N0} saved items without rescanning. Use Rescan sources to discover changed files." : "No connected sources to rescan. Saved media remains available.");
+                return;
+            }
             Status.Text = "Library available · reading capture dates and dimensions…";
-            var metadataSource = SelectedSource;
+            foreach (var metadataSource in scannedIds)
             await Task.Run(() => catalog.EnrichAsync(new WindowsMetadataReader(), metadataSource, scanCancellation.Token,
                 new Progress<int>(n => DispatcherQueue.TryEnqueue(() => Status.Text = $"Metadata · {n:N0} updated"))));
             Notify($"Scan complete: {count:N0} media files. Metadata saved. Navigate or Reset to apply new dates without shifting your current view.");
@@ -172,11 +205,16 @@ public sealed partial class MainWindow : Window
         var card = Selected; var selected = MediaGrid.SelectedItems.Cast<MediaCard>().ToArray();
         SelectionBar.Visibility = selected.Length > 0 ? Visibility.Visible : Visibility.Collapsed;
         SelectionCount.Text = $"{selected.Length:N0} selected";
+        RefreshSelectionDetails();
+        TagsBox.Text = card?.Item.Tags ?? ""; FavoriteButton.Content = selected.Length > 0 && selected.All(c => c.Item.Favorite) ? "★ Unfavorite" : "☆ Favorite";
+    }
+    private void RefreshSelectionDetails()
+    {
+        var card = Selected;
         var meta = card?.Item.Metadata;
         var dimensions=meta?.Width > 0 && meta.Height > 0 ? $"{meta.Width} × {meta.Height}" : "Dimensions unavailable";
         var taken=meta?.TakenTicks is long ticks ? new DateTime(ticks,DateTimeKind.Utc).ToLocalTime().ToString("dd MMM yyyy HH:mm") : "Unavailable";
         SelectionText.Text = card is null ? "Select media to inspect" : $"{card.Name}\n\n{card.Item.Media.RelativePath}\n\n{card.Item.Media.Length / 1024d:N0} KB · {card.Item.Media.Kind}\n{dimensions}\n{(meta?.DurationSeconds > 0 ? TimeSpan.FromSeconds(meta.DurationSeconds).ToString() : "")}\n\nTaken: {taken}\nModified: {new DateTime(card.Item.Media.ModifiedTicks,DateTimeKind.Utc).ToLocalTime():dd MMM yyyy HH:mm}\n{meta?.DateOrigin}\n\n{(card.Item.Media.IsAvailable ? "Source connected" : "Offline preview · reconnect to open original")}";
-        TagsBox.Text = card?.Item.Tags ?? ""; FavoriteButton.Content = selected.Length > 0 && selected.All(c => c.Item.Favorite) ? "★ Unfavorite" : "☆ Favorite";
     }
     private void GridRightTapped(object sender, RightTappedRoutedEventArgs e)
     {
