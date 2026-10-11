@@ -186,6 +186,18 @@ try {
     $graphics.CopyFromScreen([int]$rectangle.X,[int]$rectangle.Y,0,0,$bitmap.Size)
     $bitmap.Save((Join-Path (Get-Location) 'artifacts/qa/startup.png'))
     $graphics.Dispose(); $bitmap.Dispose()
+    # Capture the polished palette in both supported appearance modes.
+    (Wait-Control 'Settings').GetCurrentPattern([System.Windows.Automation.InvokePattern]::Pattern).Invoke()
+    (Find-Id 'ThemeSelector').GetCurrentPattern([System.Windows.Automation.ExpandCollapsePattern]::Pattern).Expand()
+    (Wait-Control 'Dark').GetCurrentPattern([System.Windows.Automation.SelectionItemPattern]::Pattern).Select()
+    (Wait-Control 'Save').GetCurrentPattern([System.Windows.Automation.InvokePattern]::Pattern).Invoke()
+    Start-Sleep -Seconds 2
+    $rectangle = $window.Current.BoundingRectangle
+    $bitmap = [System.Drawing.Bitmap]::new([int]$rectangle.Width,[int]$rectangle.Height)
+    $graphics = [System.Drawing.Graphics]::FromImage($bitmap)
+    $graphics.CopyFromScreen([int]$rectangle.X,[int]$rectangle.Y,0,0,$bitmap.Size)
+    $bitmap.Save((Join-Path (Get-Location) 'artifacts/qa/dark-gallery.png'))
+    $graphics.Dispose(); $bitmap.Dispose()
     'PASS: native window, 260-item continuous scrolling and image recycling, search, selection, favorites, albums, cached folders, offline preparation and view preference restart work through Windows UI Automation.' | Set-Content artifacts/qa/result.txt
 } catch {
     if ($window) {

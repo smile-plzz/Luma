@@ -99,6 +99,61 @@ public sealed class GalleryTests : IDisposable
         int calls=0; var changed=await FileTransfer.RunAsync(source,target,true,()=>++calls==1);
         Assert.False(changed.Copied); Assert.True(File.Exists(source)); Assert.False(File.Exists(target)); Assert.Empty(Directory.GetFiles(root,"*.tmp"));
     }
+    [Theory]
+    [InlineData(false)]
+    [InlineData(true)]
+    public async Task BrowsingDuringAnOpenScanReadsCommittedSnapshot(bool cancelScan)
+    {
+        await Seed(125);
+        var before=await catalog.QueryAsync(new(Sort:MediaSort.Name,Limit:20));
+        var album=await catalog.SaveAlbumAsync("During scan");
+        await catalog.SetAlbumItemsAsync(album,[before.Items[0].Media],true);
+        await catalog.AnnotateAsync(before.Items[0].Media,true,"keep");
+        File.WriteAllBytes(Path.Combine(root,"new-photo.jpg"),new byte[4]);
+        using var entered=new ManualResetEventSlim();
+        using var release=new ManualResetEventSlim();
+        using var cancellation=new CancellationTokenSource();
+        var progress=new BlockingScanProgress(entered,release);
+        var scan=Task.Run(()=>catalog.ScanAsync("source",root,cancellation.Token,progress));
+        Task? browsing=null;
+        try
+        {
+            Assert.True(entered.Wait(TimeSpan.FromSeconds(10)),"Scan never acquired its write transaction.");
+            browsing=Task.Run(async ()=>
+            {
+                var page=await catalog.QueryAsync(new(Sort:MediaSort.Captured,Limit:20));
+                Assert.Equal(125,page.Total);
+                Assert.DoesNotContain(page.Items,x=>x.Media.RelativePath=="new-photo.jpg");
+                var next=await catalog.QueryAsync(new(Sort:MediaSort.Captured,Limit:20,Cursor:page.Next));
+                Assert.Empty(page.Items.Select(x=>x.Id).Intersect(next.Items.Select(x=>x.Id)));
+                Assert.Single((await catalog.QueryAsync(new(AlbumId:album,FavoritesOnly:true,Search:"keep"))).Items);
+                Assert.NotEmpty(await catalog.MonthsAsync(new(Sort:MediaSort.Captured)));
+            });
+            // The old immediate gallery transaction waits for the held writer.
+            // Read completion must happen BEFORE releasing it, not merely eventually.
+            await browsing.WaitAsync(TimeSpan.FromSeconds(5));
+        }
+        finally
+        {
+            if(cancelScan)cancellation.Cancel();
+            release.Set();
+            if(cancelScan)await Assert.ThrowsAnyAsync<OperationCanceledException>(()=>scan);
+            else await scan;
+            if(browsing is not null)await browsing;
+        }
+        Assert.Equal(cancelScan ? 125 : 126,(await catalog.QueryAsync(new())).Total);
+        Assert.Single((await catalog.QueryAsync(new(AlbumId:album,FavoritesOnly:true))).Items);
+    }
+    private sealed class BlockingScanProgress(ManualResetEventSlim entered,ManualResetEventSlim release):IProgress<int>
+    {
+        private int paused;
+        public void Report(int value)
+        {
+            if(Interlocked.Exchange(ref paused,1)!=0)return;
+            entered.Set();
+            if(!release.Wait(TimeSpan.FromSeconds(20)))throw new TimeoutException("Test did not release scan.");
+        }
+    }
     private sealed class Resolver(string root):ISourceResolver { public bool Online=true; public string? ResolveRoot(string id)=>Online ? root : null; }
     private sealed class Reader:IMetadataReader { public int Calls; public Task<MediaMetadata> ReadAsync(string path,string kind,CancellationToken ct) { Calls++; return Task.FromResult(new MediaMetadata(null,"fixture",640,480)); } }
 }

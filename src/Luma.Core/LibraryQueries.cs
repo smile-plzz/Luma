@@ -68,7 +68,11 @@ public sealed partial class MediaCache
         if (query.Offset < 0 || query.Limit is < 1 or > 500) throw new ArgumentOutOfRangeException(nameof(query));
         await using var db = new SqliteConnection(connectionString); await db.OpenAsync(ct);
         db.CreateFunction<string,string>("luma_extension",path => Path.GetExtension(path).ToLowerInvariant(),isDeterministic:true);
-        await using var tx = (SqliteTransaction)await db.BeginTransactionAsync(ct);
+        // A gallery read must not reserve SQLite's single writer slot. WAL lets
+        // this deferred, SELECT-only snapshot coexist with a long-running scan.
+        // Keep count and rows in one snapshot rather than removing the transaction.
+        ct.ThrowIfCancellationRequested();
+        await using var tx = db.BeginTransaction(deferred: true);
         await using var cmd = db.CreateCommand(); cmd.Transaction = tx; QueryParameters(cmd,query);
         var value = OrderValue(query.Sort);
         var descending = query.Descending ?? query.Sort is MediaSort.Newest or MediaSort.Largest or MediaSort.Captured;
