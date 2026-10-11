@@ -67,3 +67,9 @@ Physical USB reconnects, low-disk faults, native Recycle Bin prompts, Explorer d
 The gallery reads the last committed catalog while a scan indexes a drive. Newly discovered files appear after that source scan commits; cancelling retains the previous committed catalog. The import-lock fix uses a deferred read transaction so browsing does not compete for the scan's SQLite write lock.
 
 If an older build shows `SQLite Error 5: database is locked` during indexing, let indexing finish (or use Cancel), then choose Reset. Do not delete the catalog or rescan repeatedly in response to that message. Upgrade to a build containing the import-lock fix for concurrent browsing. This workaround addresses the reported gallery/scan conflict; persistent locking with no scan running should be reported separately.
+
+## Visual refinement after initial testing
+
+The polished gallery uses a soft neutral sidebar, a quieter photo canvas, rounded borderless controls and a single compact view toolbar. Light and dark palettes adapt with the existing theme setting, and high-contrast colors use system resources. Folder navigation is shown after selecting a source; maintenance remains in Drive tools. File counts and progress stay visible without database/loading terminology dominating the gallery. Loaded transparent previews no longer show a placeholder icon underneath them.
+
+The interaction model stays the same: Windows selection and shortcuts, the optional inspector, accessible control names, continuous browsing and default-app opening. This is a frontend refinement, with the separately documented import-lock correction included in the same follow-up build.

@@ -22,6 +22,7 @@ public sealed partial class MainWindow
         var source = SelectedSource; var parent = FolderFilter.Text.Trim();
         IReadOnlyList<CachedFolder> folders = source is null ? Array.Empty<CachedFolder>() : await Task.Run(() => catalog.FoldersAsync(source, parent, ct), ct);
         ct.ThrowIfCancellationRequested();
+        FolderNavigation.Visibility = source is null ? Visibility.Collapsed : Visibility.Visible;
         FolderList.ItemsSource = folders;
         FolderHint.Text = source is null ? "Select a source to browse its folders." :
             folders.Count == 0 ? "No indexed subfolders here." : "Subfolders · includes nested media";

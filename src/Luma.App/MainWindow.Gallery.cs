@@ -71,10 +71,10 @@ public sealed partial class MainWindow
             }
             exhausted = page.Items.Count < query.Limit || cards.Count >= total;
             EmptyState.Visibility = cards.Count == 0 ? Visibility.Visible : Visibility.Collapsed;
-            EmptyTitle.Text = SearchBox.Text.Length > 0 ? "No matching moments" : "Your library starts here";
-            EmptyText.Text = "Add a folder or drive, or reset your filters. Saved previews remain available offline.";
-            LibrarySummary.Text = $"{total:N0} items · {(Grouped ? "Chronological gallery" : "Continuous grid")}";
-            if (!scanning && !preparing) Status.Text = $"{cards.Count:N0} of {total:N0} loaded · {(exhausted ? "All results loaded" : "Scroll to explore")}";
+            EmptyTitle.Text = SearchBox.Text.Length > 0 ? "No matching moments" : "A little room for memories";
+            EmptyText.Text = SearchBox.Text.Length > 0 ? "Try another name, folder or tag, or choose Reset to see your library again." : "Add a folder or drive to begin. If you already have a library, choose Reset to see all your moments.";
+            LibrarySummary.Text = $"{total:N0} items";
+            if (!scanning && !preparing) Status.Text = total == 0 ? "" : exhausted ? "You’re all caught up" : "Scroll to explore";
         }
         catch(OperationCanceledException) { }
         finally { if (generation == queryCancellation) { loading=false; Busy.IsActive=scanning || preparing; } }
