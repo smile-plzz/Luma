@@ -5,7 +5,7 @@ namespace Luma.Core;
 public enum MediaSort { Newest, Oldest, Name, Largest, Captured, Type }
 public sealed record GalleryCursor(string Value, string SourceId, string RelativePath);
 public sealed record LibraryQuery(string? SourceId = null, string Search = "", string? Kind = null,
-    bool FavoritesOnly = false, MediaSort Sort = MediaSort.Newest, int Offset = 0, int Limit = 120, string Folder = "", bool? Descending = null, string? AlbumId = null, bool IncludeDescendants = true, bool CommonOnly = false, long? BeforeTicks = null, GalleryCursor? Cursor = null);
+    bool FavoritesOnly = false, MediaSort Sort = MediaSort.Newest, int Offset = 0, int Limit = 120, string Folder = "", bool? Descending = null, string? AlbumId = null, bool IncludeDescendants = true, bool CommonOnly = false, long? BeforeTicks = null, GalleryCursor? Cursor = null, DateOnly? MemoriesOn = null);
 public sealed record LibraryItem(CachedMedia Media, bool Favorite, string Tags, string Id = "", MediaMetadata? Metadata = null);
 public sealed record LibraryPage(IReadOnlyList<LibraryItem> Items, long Total, GalleryCursor? Next = null);
 
@@ -33,6 +33,7 @@ public sealed partial class MediaCache
         LEFT JOIN metadata d ON d.source_id=m.source_id AND d.relative_path=m.relative_path AND d.length=m.length AND d.modified_ticks=m.modified_ticks
         WHERE ($source IS NULL OR m.source_id=$source) AND ($kind IS NULL OR m.kind=$kind)
         AND ($favorites=0 OR a.favorite=1)
+        AND ($memoryDay IS NULL OR (d.taken_ticks IS NOT NULL AND luma_memory(d.taken_ticks,$memoryDay)=1))
         AND ($search='' OR m.relative_path LIKE $search ESCAPE '\' OR a.tags LIKE $search ESCAPE '\')
         AND ($folder='' OR m.relative_path LIKE $folder ESCAPE '\')
         AND ($recursive=1 OR instr(substr(m.relative_path,length($prefix)+1),$separator)=0)
@@ -50,6 +51,14 @@ public sealed partial class MediaCache
     };
     private static void QueryParameters(SqliteCommand cmd, LibraryQuery query)
     {
+        cmd.Connection!.CreateFunction<long?,string?,bool>("luma_memory", (ticks, day) =>
+        {
+            if (ticks is null || day is null || ticks.Value < DateTime.MinValue.Ticks || ticks.Value > DateTime.MaxValue.Ticks) return false;
+            var reference = DateOnly.ParseExact(day,"yyyy-MM-dd",System.Globalization.CultureInfo.InvariantCulture);
+            var taken = new DateTime(ticks.Value,DateTimeKind.Utc).ToLocalTime();
+            return taken.Year < reference.Year && taken.Month == reference.Month && taken.Day == reference.Day;
+        });
+        cmd.Parameters.AddWithValue("$memoryDay", (object?)query.MemoriesOn?.ToString("yyyy-MM-dd",System.Globalization.CultureInfo.InvariantCulture) ?? DBNull.Value);
         static string Escape(string value) => value.Replace("\\", "\\\\").Replace("%", "\\%").Replace("_", "\\_");
         var prefix = query.Folder.Length == 0 ? "" : query.Folder.TrimEnd('\\','/') + Path.DirectorySeparatorChar;
         cmd.Parameters.AddWithValue("$source",(object?)query.SourceId ?? DBNull.Value);
@@ -131,10 +140,11 @@ public sealed partial class MediaCache
 
     public async Task RemoveSourceAsync(string id, CancellationToken ct = default)
     {
+        using var lease = IndexingLease();
         await using var db = new SqliteConnection(connectionString); await db.OpenAsync(ct);
         await using var transaction = (SqliteTransaction)await db.BeginTransactionAsync(ct);
         await using var cmd = db.CreateCommand(); cmd.Transaction = transaction;
-        cmd.CommandText = "DELETE FROM album_items WHERE media_id IN(SELECT id FROM media_ids WHERE source_id=$id); DELETE FROM media_ids WHERE source_id=$id; DELETE FROM metadata WHERE source_id=$id; DELETE FROM source_labels WHERE source_id=$id; DELETE FROM annotations WHERE source_id=$id; DELETE FROM media WHERE source_id=$id; DELETE FROM sources WHERE id=$id;";
+        cmd.CommandText = "DELETE FROM scan_media WHERE source_id=$id; DELETE FROM scan_folders WHERE source_id=$id; DELETE FROM scan_jobs WHERE source_id=$id; DELETE FROM album_items WHERE media_id IN(SELECT id FROM media_ids WHERE source_id=$id); DELETE FROM media_ids WHERE source_id=$id; DELETE FROM metadata WHERE source_id=$id; DELETE FROM source_labels WHERE source_id=$id; DELETE FROM annotations WHERE source_id=$id; DELETE FROM media WHERE source_id=$id; DELETE FROM sources WHERE id=$id;";
         cmd.Parameters.AddWithValue("$id", id); await cmd.ExecuteNonQueryAsync(ct); await transaction.CommitAsync(ct);
     }
 }

@@ -5,7 +5,7 @@ using Microsoft.UI.Xaml;
 using Microsoft.UI.Xaml.Media;
 using Microsoft.UI.Xaml.Media.Imaging;
 namespace Luma.App;
-public sealed class MediaCard(LibraryItem item, AppSettings settings) : INotifyPropertyChanged
+public sealed class MediaCard(LibraryItem item, AppSettings settings, DateOnly? memoryDay = null) : INotifyPropertyChanged
 {
     public LibraryItem Item { get; private set; } = item;
     public void SetAvailability(bool online)
@@ -15,8 +15,8 @@ public sealed class MediaCard(LibraryItem item, AppSettings settings) : INotifyP
         Changed(nameof(Item)); Changed(nameof(State)); Changed(nameof(StatusVisibility));
     }
     public string Name => Path.GetFileName(Item.Media.RelativePath);
-    public DateTime Date => new DateTime(settings.SortIndex == 4 ? Item.Metadata?.TakenTicks ?? Item.Media.ModifiedTicks : Item.Media.ModifiedTicks, DateTimeKind.Utc).ToLocalTime();
-    public string Group => Date.ToString(settings.GroupIndex switch { 1 => "yyyy", 3 => "dddd, d MMMM yyyy", _ => "MMMM yyyy" });
+    public DateTime Date => new DateTime(memoryDay is not null || settings.SortIndex == 4 ? Item.Metadata?.TakenTicks ?? Item.Media.ModifiedTicks : Item.Media.ModifiedTicks, DateTimeKind.Utc).ToLocalTime();
+    public string Group => memoryDay is not null ? $"{Date:yyyy} · {memoryDay.Value.Year-Date.Year} {(memoryDay.Value.Year-Date.Year == 1 ? "year" : "years")} ago" : Date.ToString(settings.GroupIndex switch { 1 => "yyyy", 3 => "dddd, d MMMM yyyy", _ => "MMMM yyyy" });
     public string Caption => $"{Date:dd MMM yyyy} · {Item.Media.Length / 1024d:N0} KB";
     public string State => (Item.Favorite ? "★  " : "") + (Item.Media.Kind == "video" ? "VIDEO  " : "") + (Item.Media.IsAvailable ? "" : "Offline");
     public Visibility StatusVisibility => string.IsNullOrWhiteSpace(State) ? Visibility.Collapsed : Visibility.Visible;

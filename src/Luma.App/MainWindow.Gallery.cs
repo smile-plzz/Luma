@@ -19,6 +19,8 @@ public sealed partial class MainWindow
     private bool loading, exhausted;
     private int peakDecoded;
     private long? beforeTicks;
+    private bool IsMemories => Navigation.SelectedIndex == 5;
+    private DateOnly MemoryDay => DateOnly.FromDateTime((MemoryDate.Date ?? DateTimeOffset.Now).LocalDateTime);
     private bool Grouped => settings.GroupIndex > 0 && settings.SortIndex is 0 or 1 or 4;
     private string? SelectedAlbum => (AlbumsBox.SelectedItem as Album)?.Id;
 
@@ -34,7 +36,7 @@ public sealed partial class MainWindow
         CommonToggle.IsChecked = settings.CommonOnly; RecursiveToggle.IsChecked = settings.IncludeDescendants;
     }
     private LibraryQuery CurrentQuery() => new(SelectedSource,SearchBox.Text.Trim(),Navigation.SelectedIndex == 2 ? "photo" : Navigation.SelectedIndex == 3 ? "video" : null,
-        Navigation.SelectedIndex == 4,(MediaSort)settings.SortIndex,0,120,FolderFilter.Text.Trim(),settings.Descending,SelectedAlbum,settings.IncludeDescendants,settings.CommonOnly,beforeTicks);
+        Navigation.SelectedIndex == 4,(MediaSort)settings.SortIndex,0,120,FolderFilter.Text.Trim(),settings.Descending,SelectedAlbum,settings.IncludeDescendants,settings.CommonOnly,beforeTicks,MemoriesOn:IsMemories ? MemoryDay : null);
 
     private async Task Refresh()
     {
@@ -62,7 +64,7 @@ public sealed partial class MainWindow
             total = page.Total; cursor = page.Next;
             foreach(var item in page.Items)
             {
-                var card = new MediaCard(item,settings) { IsCut=pendingCutIds.Contains(item.Id) }; cards.Add(card);
+                var card = new MediaCard(item,settings,IsMemories ? MemoryDay : null) { IsCut=pendingCutIds.Contains(item.Id) }; cards.Add(card);
                 if (Grouped)
                 {
                     if (groups.Count == 0 || groups[^1].Key != card.Group) groups.Add(new(card.Group));
@@ -73,7 +75,12 @@ public sealed partial class MainWindow
             EmptyState.Visibility = cards.Count == 0 ? Visibility.Visible : Visibility.Collapsed;
             EmptyTitle.Text = SearchBox.Text.Length > 0 ? "No matching moments" : "A little room for memories";
             EmptyText.Text = SearchBox.Text.Length > 0 ? "Try another name, folder or tag, or choose Reset to see your library again." : "Add a folder or drive to begin. If you already have a library, choose Reset to see all your moments.";
-            LibrarySummary.Text = $"{total:N0} items";
+            if (IsMemories && cards.Count == 0)
+            {
+                EmptyTitle.Text = "No memories for this day yet";
+                EmptyText.Text = "Choose another day or add more photos. Memories use recorded capture dates from earlier years; files without a capture date remain in your library. Active filters also apply.";
+            }
+            LibrarySummary.Text = IsMemories ? $"{MemoryDay:MMMM d} · {total:N0} memories from earlier years" : $"{total:N0} items";
             if (!scanning && !preparing) Status.Text = total == 0 ? "" : exhausted ? "You’re all caught up" : "Scroll to explore";
         }
         catch(OperationCanceledException) { }
@@ -132,12 +139,19 @@ public sealed partial class MainWindow
     {
         if(!ready) return; Heading.Text=Navigation.SelectedItem?.ToString() ?? "Library";
         ready=false;
-        if(Navigation.SelectedIndex == 1)
+        MemoryDate.Visibility = IsMemories ? Visibility.Visible : Visibility.Collapsed;
+        if (IsMemories) { MemoryDate.MaxDate=DateTimeOffset.Now; MemoryDate.Date=DateTimeOffset.Now; settings.GroupIndex=1; GroupBox.SelectedIndex=1; settings.Descending=true; DescendingButton.IsChecked=true; }
+        if(Navigation.SelectedIndex is 1 or 5)
         {
             settings.SortIndex=4; SortBox.SelectedIndex=4;
             if(settings.GroupIndex==0) { settings.GroupIndex=2; GroupBox.SelectedIndex=2; }
         }
         AlbumsBox.SelectedItem=null; ready=true; settings.Save(); beforeTicks=null; await Guard(Refresh);
+    }
+    private async void MemoryDateChanged(CalendarDatePicker sender, CalendarDatePickerDateChangedEventArgs args)
+    {
+        if(!ready || !IsMemories) return;
+        beforeTicks=null; await Guard(Refresh);
     }
     private async void FilterChanged(object sender,SelectionChangedEventArgs e)
     {
@@ -183,7 +197,7 @@ public sealed partial class MainWindow
     private async void ResetFilters(object sender,RoutedEventArgs e)
     {
         ready=false; SearchBox.Text=""; FolderFilter.Text=""; AlbumsBox.SelectedItem=null; Sources.SelectedIndex=0; Navigation.SelectedIndex=0; ready=true;
-        Heading.Text="Library"; beforeTicks=null; await Guard(Refresh);
+        Heading.Text="Library"; MemoryDate.Visibility=Visibility.Collapsed; beforeTicks=null; await Guard(Refresh);
     }
     private void InspectorChanged(object sender,RoutedEventArgs e) { if(ready) Inspector.Visibility=InspectorToggle.IsChecked==true ? Visibility.Visible : Visibility.Collapsed; }
     private void GalleryWheel(object sender,PointerRoutedEventArgs e)

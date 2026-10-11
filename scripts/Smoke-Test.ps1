@@ -153,6 +153,18 @@ try {
     Start-Sleep -Seconds 2
     Wait-Control 'fixture000.bmp' | Out-Null
     Wait-Control 'Trips' | Out-Null
+    (Wait-Control 'On this day').GetCurrentPattern([System.Windows.Automation.SelectionItemPattern]::Pattern).Select()
+    Start-Sleep -Seconds 2
+    Wait-Control 'fixture003.bmp' | Out-Null
+    Wait-Control 'Memory day' | Out-Null
+    if (Find-Control 'fixture000.bmp') { throw 'Memories included media without a capture date.' }
+    'PASS: On this day shows previous-year captured media from the offline catalog.' | Set-Content artifacts/qa/memories.txt
+    (Wait-Control 'Reset').GetCurrentPattern([System.Windows.Automation.InvokePattern]::Pattern).Invoke()
+    # Restore the smoke fixture ordering after leaving memories.
+    (Wait-Control 'Sort order').GetCurrentPattern([System.Windows.Automation.ExpandCollapsePattern]::Pattern).Expand()
+    (Wait-Control 'Date modified').GetCurrentPattern([System.Windows.Automation.SelectionItemPattern]::Pattern).Select()
+    Start-Sleep -Seconds 2
+
     (Wait-Control 'Check offline coverage').GetCurrentPattern([System.Windows.Automation.InvokePattern]::Pattern).Invoke()
     Start-Sleep -Seconds 1
     $nodes = $window.FindAll([System.Windows.Automation.TreeScope]::Descendants,[System.Windows.Automation.Condition]::TrueCondition)

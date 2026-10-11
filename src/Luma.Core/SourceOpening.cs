@@ -16,7 +16,7 @@ public sealed partial class MediaCache
         {
             await db.OpenAsync(ct);
             await using var cmd = db.CreateCommand();
-            cmd.CommandText = "SELECT (SELECT COUNT(*) FROM media WHERE source_id=$id) FROM sources WHERE id=$id";
+            cmd.CommandText = "SELECT (SELECT COUNT(*) FROM media WHERE source_id=$id) FROM sources WHERE id=$id AND NOT EXISTS(SELECT 1 FROM scan_jobs WHERE source_id=$id)";
             cmd.Parameters.AddWithValue("$id", sourceId);
             var saved = await cmd.ExecuteScalarAsync(ct);
             if (saved is not null) return new(true, Convert.ToInt64(saved));

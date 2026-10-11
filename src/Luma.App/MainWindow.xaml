@@ -18,7 +18,7 @@
    <ScrollViewer VerticalScrollBarVisibility="Auto" HorizontalScrollBarVisibility="Disabled">
     <StackPanel Padding="18,28,18,20" Spacing="10">
      <StackPanel Margin="12,0,0,20" Spacing="3"><TextBlock Text="Luma" FontSize="26" FontWeight="SemiBold" CharacterSpacing="-30"/><TextBlock Text="A place for your moments" FontSize="11" Opacity="0.65"/></StackPanel>
-     <ListView x:Name="Navigation" SelectionChanged="NavigationChanged" SelectedIndex="0"><x:String>Library</x:String><x:String>Timeline</x:String><x:String>Photos</x:String><x:String>Videos</x:String><x:String>Favorites</x:String></ListView>
+     <ListView x:Name="Navigation" SelectionChanged="NavigationChanged" SelectedIndex="0"><x:String>Library</x:String><x:String>Timeline</x:String><x:String>Photos</x:String><x:String>Videos</x:String><x:String>Favorites</x:String><x:String>On this day</x:String></ListView>
      <TextBlock Text="Albums" FontSize="12" FontWeight="SemiBold" Opacity="0.65" Margin="12,22,0,0"/>
      <ComboBox x:Name="AlbumsBox" PlaceholderText="Choose an album" HorizontalAlignment="Stretch" SelectionChanged="AlbumChanged" AutomationProperties.Name="Album filter" AllowDrop="True" DragOver="AlbumDragOver" Drop="AlbumDrop"/>
      <StackPanel Orientation="Horizontal" Spacing="6"><Button Content="+ Album" Click="NewAlbum"/><Button Content="⋯" AutomationProperties.Name="Album actions"><Button.Flyout><MenuFlyout><MenuFlyoutItem Text="Rename album" Click="RenameAlbum"/><MenuFlyoutItem Text="Delete album" Click="DeleteAlbum"/><MenuFlyoutItem Text="Show all albums' media" Click="LeaveAlbum"/></MenuFlyout></Button.Flyout></Button></StackPanel>
@@ -37,6 +37,9 @@
       <StackPanel Spacing="8">
        <Button Content="Refresh drive status" Click="RefreshDriveStatus"/>
        <Button x:Name="RescanButton" Content="Rescan sources" Click="Rescan"/>
+       <Button x:Name="ResumeIndexingButton" Content="Resume indexing" Click="ResumeIndexing" Visibility="Collapsed"/>
+       <TextBlock x:Name="IndexingHint" FontSize="11" TextWrapping="Wrap" Visibility="Collapsed"/>
+       <Button Content="Restart selected indexing" Click="RestartIndexing"/>
        <Button Content="Refresh metadata" Click="RefreshMetadata"/>
        <Button Content="Rename source label" Click="RenameSourceLabel"/>
        <Button Content="Remove selected source" Click="RemoveSource"/>
@@ -70,7 +73,7 @@
     <Button Content="Reset" Click="ResetFilters"/><ToggleButton x:Name="InspectorToggle" AutomationProperties.AutomationId="InspectorToggle" Content="Details" ToolTipService.ToolTip="Show file details" Checked="InspectorChanged" Unchecked="InspectorChanged"/>
    </StackPanel>
    </Border>
-   <InfoBar x:Name="Notice" Grid.Row="2" IsOpen="False" IsClosable="True"/>
+   <StackPanel Grid.Row="2" Spacing="8"><CalendarDatePicker x:Name="MemoryDate" Visibility="Collapsed" DateChanged="MemoryDateChanged" AutomationProperties.Name="Memory day" PlaceholderText="Choose a day"/><InfoBar x:Name="Notice" IsOpen="False" IsClosable="True"/></StackPanel>
    <Grid Grid.Row="3">
     <Grid.ColumnDefinitions><ColumnDefinition Width="*"/><ColumnDefinition Width="Auto"/></Grid.ColumnDefinitions>
     <GridView x:Name="MediaGrid" AutomationProperties.AutomationId="MediaGrid" SelectionMode="Extended" IsItemClickEnabled="False" DoubleTapped="GridDoubleTapped" SelectionChanged="SelectionChanged" RightTapped="GridRightTapped" ScrollViewer.HorizontalScrollBarVisibility="Disabled" ContainerContentChanging="TileChanging" Loaded="GalleryLoaded" CanDragItems="True" DragItemsStarting="StartDrag" PointerWheelChanged="GalleryWheel">
