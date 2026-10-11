@@ -61,3 +61,9 @@ Core coverage includes cursor traversal with tied sort values in both directions
 The Windows integration suite checks actual volume identity plus BMP, JPEG and PNG thumbnail decoding and dimensions. The native UI smoke uses 260 isolated synthetic images, scrolls across several internal batches and back, checks the peak decoded-image count, and exercises search, favorites, virtual albums, folders, clearing/preparing previews and a simulated unavailable source. It restarts the isolated library and verifies thumbnail/label preferences are restored. It writes screenshot, coverage and image-lifetime evidence.
 
 Physical USB reconnects, low-disk faults, native Recycle Bin prompts, Explorer drag/drop and a diverse real-world codec set still need acceptance on the user's Windows bench. Synthetic CI screenshots are functional evidence, not a substitute for visual review with personal photos/videos. The build does not claim a measured 100k-image scrolling/frame-rate guarantee. Lightweight loaded records accumulate during exploration; decoded images are recycled. There is no cloud account, embedded player/editor, automatic original-file rearrangement, signing certificate or installer.
+
+## Browsing while importing
+
+The gallery reads the last committed catalog while a scan indexes a drive. Newly discovered files appear after that source scan commits; cancelling retains the previous committed catalog. The import-lock fix uses a deferred read transaction so browsing does not compete for the scan's SQLite write lock.
+
+If an older build shows `SQLite Error 5: database is locked` during indexing, let indexing finish (or use Cancel), then choose Reset. Do not delete the catalog or rescan repeatedly in response to that message. Upgrade to a build containing the import-lock fix for concurrent browsing. This workaround addresses the reported gallery/scan conflict; persistent locking with no scan running should be reported separately.

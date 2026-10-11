@@ -48,3 +48,9 @@ Before a general release, manually prepare a multi-page removable source, cancel
 See [GALLERY_BUILD.md](GALLERY_BUILD.md) for the current implementation and limits. The gallery suite adds ten cursor sort/direction cases, seven metadata/organization/transfer regressions, and three catalog scale cases (1k/10k/100k). The native smoke now uses 260 fixtures, scrolls to the end and back without paging buttons, records peak decoded images, then performs the existing offline preparation/disconnection sequence. Windows integration also checks BMP/JPEG/PNG decoding, dimensions and missing capture-date fallback. Native smoke additionally creates/populates an album and checks view preferences after restarting the isolated library. The verified gallery run above records the final counts and outcomes.
 
 The current gallery suite contains 47 core test cases (including three scale cases) and four Windows integration cases. A source-list regression also checks that reconnecting under a different mount path updates the displayed path. Core cases run on both Windows and Linux. Native UI smoke is an additional independent gate.
+
+## Import lock regression
+
+The first real-drive report showed `SQLite Error 5: database is locked` while browsing during a long scan. `QueryAsync` used an immediate transaction despite executing only SELECTs, competing with the scanner for the writer slot. It now uses a deferred read snapshot; count and rows remain consistent while WAL allows the scan to write.
+
+Two regressions hold an actual scan transaction open while querying capture-date pages, cursor continuation, filtered album/favorites and month navigation. Queries must complete before the scanner is released, must see only committed rows, and must retain organization after either scan commit or cancellation. These raise core coverage to 49 cases per OS. Physical-drive confirmation remains pending.
