@@ -1,6 +1,6 @@
 # Luma delivery roadmap
 
-Status: the portable gallery development milestone is closed and merged into `main` through [PR #6](https://github.com/smile-plzz/Luma/pull/6). The next stage is real-life testing and everyday use. No additional feature phase is being started automatically.
+Status: the portable gallery development milestone is closed and merged into `main` through [PR #6](https://github.com/smile-plzz/Luma/pull/6). The first real-use follow-up, [PR #7](https://github.com/smile-plzz/Luma/pull/7), is also merged and shipped: import-lock correction and minimal UI refinement. The current stage is real-life testing and everyday use. No additional feature phase is being started automatically.
 
 | Milestone | Scope | Status |
 | --- | --- | --- |

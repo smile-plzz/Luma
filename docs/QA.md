@@ -1,6 +1,10 @@
 # QA
 
-## Verified gallery shipment
+## Current verified shipment
+
+[Run 38114261821](https://github.com/smile-plzz/Luma/actions/runs/38114261821), commit `55df818d8e0c2234681af2eb6962e735e2d90689`: all jobs passed. 49 core tests pass on Windows and Linux, four Windows integration cases pass, and the packaged desktop passes the complete UI smoke including theme switching. PR #7 is merged. Light/dark screenshots were inspected; physical-drive confirmation of the reported import issue remains pending.
+
+## Original gallery shipment
 
 [Run 38077921235](https://github.com/smile-plzz/Luma/actions/runs/38077921235), commit `6b94e38c5e4ee4cc0112419fc4b28a3fe6450173`: all jobs passed. 47 core cases pass on each of Windows and Linux; four Windows integration cases pass; self-contained publishing, compiled XAML resources and native UI smoke pass. This code is merged through PR #6. The [testing handoff](TESTING_HANDOFF.md) links the exact ZIP and evidence.
 
@@ -47,7 +51,7 @@ Before a general release, manually prepare a multi-page removable source, cancel
 
 See [GALLERY_BUILD.md](GALLERY_BUILD.md) for the current implementation and limits. The gallery suite adds ten cursor sort/direction cases, seven metadata/organization/transfer regressions, and three catalog scale cases (1k/10k/100k). The native smoke now uses 260 fixtures, scrolls to the end and back without paging buttons, records peak decoded images, then performs the existing offline preparation/disconnection sequence. Windows integration also checks BMP/JPEG/PNG decoding, dimensions and missing capture-date fallback. Native smoke additionally creates/populates an album and checks view preferences after restarting the isolated library. The verified gallery run above records the final counts and outcomes.
 
-The current gallery suite contains 47 core test cases (including three scale cases) and four Windows integration cases. A source-list regression also checks that reconnecting under a different mount path updates the displayed path. Core cases run on both Windows and Linux. Native UI smoke is an additional independent gate.
+The original gallery suite contained 47 core test cases (including three scale cases) and four Windows integration cases. A source-list regression also checks that reconnecting under a different mount path updates the displayed path. Core cases run on both Windows and Linux. Native UI smoke is an additional independent gate.
 
 ## Import lock regression
 

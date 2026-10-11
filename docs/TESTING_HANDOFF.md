@@ -1,6 +1,13 @@
 # Luma: shipment and real-life testing
 
-Development closeout: 11 October 2026 (Asia/Dhaka). The portable gallery milestone is merged into `main` through [PR #6](https://github.com/smile-plzz/Luma/pull/6). Real-life testing and everyday use now guide further refinements. This is a testing shipment, not a claim that physical-device acceptance is complete.
+Development closeout: 11 October 2026 (Asia/Dhaka). The portable gallery milestone is merged into `main` through PR #6, followed by the shipped refinements in [PR #7](https://github.com/smile-plzz/Luma/pull/7). Real-life testing and everyday use now guide further refinements. This is a testing shipment, not a claim that physical-device acceptance is complete.
+
+## What changed in this shipment
+
+- Fixed the gallery read transaction that caused SQLite lock errors while a long external-drive scan was running. Regression checks cover concurrent browsing with both scan completion and cancellation.
+- Refined light/dark surfaces, rounded controls, toolbar, typography and photo tiles; folder controls appear when a source is selected.
+- Removed placeholder icons beneath loaded transparent previews and simplified gallery status text.
+- Retained existing catalogs, albums, settings and original-file behavior. No database reset or source re-import is required for this update.
 
 ## Verified shipment
 
@@ -8,16 +15,16 @@ Development closeout: 11 October 2026 (Asia/Dhaka). The portable gallery milesto
 | --- | --- |
 | Platform | Windows 10 2004+ / Windows 11, x64 |
 | Package | Unsigned, self-contained portable ZIP; no installer |
-| Download | [Luma-Gallery-win-x64](https://github.com/smile-plzz/Luma/actions/runs/38077921235/artifacts/11678984011) |
-| Tested source | `6b94e38c5e4ee4cc0112419fc4b28a3fe6450173` |
-| Merge commit | `7b7c8531c256fe0d72427c24fd863e2da4d2a599` |
-| Automated evidence | [Successful run 38077921235](https://github.com/smile-plzz/Luma/actions/runs/38077921235) |
-| Desktop evidence | [Screenshots, settings and smoke results](https://github.com/smile-plzz/Luma/actions/runs/38077921235/artifacts/11679028914) |
-| ZIP SHA-256 | `e4b2222af9cb32fe5f37f6db4c4929267d8bdea8ad04f5179796b62cba76dafa` |
+| Download | [Luma-Gallery-win-x64](https://github.com/smile-plzz/Luma/actions/runs/38114261821/artifacts/11692931505) |
+| Tested source | `55df818d8e0c2234681af2eb6962e735e2d90689` |
+| Merge commit | `21d91f22427dfbfe3886ff0997847d6f72eb8bd3` |
+| Automated evidence | [Successful run 38114261821](https://github.com/smile-plzz/Luma/actions/runs/38114261821) |
+| Desktop evidence | [Screenshots, settings and smoke results](https://github.com/smile-plzz/Luma/actions/runs/38114261821/artifacts/11693520268) |
+| ZIP SHA-256 | `4130bd10748736396dfda97f3bbad5874573329ea8246e9691e7f3a24571b9e1` |
 
-47 core tests passed on Windows and Linux, four Windows integration tests passed, and the packaged app passed native desktop automation. The UI run covers continuous scrolling across 260 fixtures and back, recycled images, search, favorites, albums, folders, offline preparation/disconnection and view preferences after restart. Catalog-only scale tests cover 1k/10k/100k records.
+49 core tests passed on Windows and Linux, four Windows integration tests passed, and the packaged app passed native desktop automation. The UI run covers continuous scrolling across 260 fixtures and back, recycled images, search, favorites, albums, folders, offline preparation/disconnection view preferences after restart and theme switching. Light/dark screenshots were inspected. Catalog-only scale tests cover 1k/10k/100k records.
 
-GitHub may require sign-in to download an Actions artifact. This specific artifact is currently scheduled to expire on 8 January 2027; retain the downloaded ZIP. If unavailable, use a newer successful **Build and test** run on `main`, or run that workflow manually. Identify that newer run when reporting feedback. Executables and bundled runtime files are delivered as build artifacts; source, build automation, tests and documentation are versioned in Git.
+GitHub may require sign-in to download an Actions artifact. This specific artifact is currently scheduled to expire on 9 January 2027; retain the downloaded ZIP. If unavailable, use a newer successful **Build and test** run on `main`, or run that workflow manually. Identify that newer run when reporting feedback. Executables and bundled runtime files are delivered as build artifacts; source, build automation, tests and documentation are versioned in Git.
 
 ## First run and upgrade
 
