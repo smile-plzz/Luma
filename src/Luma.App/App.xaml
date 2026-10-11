@@ -1,5 +1,17 @@
 <Application x:Class="Luma.App.App" xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation" xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml">
   <Application.Resources><ResourceDictionary><ResourceDictionary.MergedDictionaries>
     <XamlControlsResources xmlns="using:Microsoft.UI.Xaml.Controls" />
-  </ResourceDictionary.MergedDictionaries></ResourceDictionary></Application.Resources>
+  </ResourceDictionary.MergedDictionaries>
+    <ResourceDictionary.ThemeDictionaries>
+     <ResourceDictionary x:Key="Light">
+      <SolidColorBrush x:Key="LumaCanvas" Color="#FCFCFD"/><SolidColorBrush x:Key="LumaSidebar" Color="#F1F2F4"/><SolidColorBrush x:Key="LumaControl" Color="#EFF0F2"/>
+     </ResourceDictionary>
+     <ResourceDictionary x:Key="Default">
+      <SolidColorBrush x:Key="LumaCanvas" Color="#18181A"/><SolidColorBrush x:Key="LumaSidebar" Color="#222225"/><SolidColorBrush x:Key="LumaControl" Color="#2C2C30"/>
+     </ResourceDictionary>
+     <ResourceDictionary x:Key="HighContrast">
+      <SolidColorBrush x:Key="LumaCanvas" Color="{ThemeResource SystemColorWindowColor}"/><SolidColorBrush x:Key="LumaSidebar" Color="{ThemeResource SystemColorWindowColor}"/><SolidColorBrush x:Key="LumaControl" Color="{ThemeResource SystemColorButtonFaceColor}"/>
+     </ResourceDictionary>
+    </ResourceDictionary.ThemeDictionaries>
+</ResourceDictionary></Application.Resources>
 </Application>
