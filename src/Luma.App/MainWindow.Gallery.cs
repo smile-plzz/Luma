@@ -104,7 +104,11 @@ public sealed partial class MainWindow
         if(e.Item is not MediaCard card) return;
         card.Realized = !e.InRecycleQueue;
         if(e.InRecycleQueue) { card.Thumbnail=null; return; }
-        if(!ready || clearing || card.Loading || card.Thumbnail is not null || queryCancellation is null) return;
+        await LoadThumbnail(card);
+    }
+    private async Task LoadThumbnail(MediaCard card)
+    {
+        if(!ready || clearing || !card.Realized || card.Loading || card.Thumbnail is not null || queryCancellation is null) return;
         card.Loading=true; var ct=queryCancellation.Token;
         try
         {

@@ -52,7 +52,7 @@ The latest transfer report is `%LOCALAPPDATA%\Luma\last-transfer.json`. If files
 
 Drive tools contains scanning, metadata refresh, offline preparation, coverage and cache clearing. The footer reports work and provides cancellation. The existing Phase 2 non-evicting bulk preparation and bounded browsing LRU remain in force: preparation preserves existing previews at capacity, but later browsing may evict previews. Cached media and virtual organization remain useful without the drive; original-file operations require a connected, unchanged file.
 
-Availability checks update source indicators without repeatedly rebuilding/reordering the gallery. Navigate or Reset to refresh the displayed item availability. A file action always resolves identity and validates its version again. No original is moved merely by scanning, enriching metadata or organizing an album.
+Availability checks update source indicators and loaded-card availability in place without rebuilding the gallery or losing selection/scroll. They also retry visible missing previews when the source reconnects. Checks run periodically (30 seconds), when the window becomes active, or on **Drive tools → Refresh drive status**. A file action always resolves identity and validates its version again. No original is moved merely by scanning, enriching metadata or organizing an album.
 
 ## Verification
 
@@ -73,3 +73,11 @@ If an older build shows `SQLite Error 5: database is locked` during indexing, le
 The polished gallery uses a soft neutral sidebar, a quieter photo canvas, rounded borderless controls and a single compact view toolbar. Light and dark palettes adapt with the existing theme setting, and high-contrast colors use system resources. Folder navigation is shown after selecting a source; maintenance remains in Drive tools. File counts and progress stay visible without database/loading terminology dominating the gallery. Loaded transparent previews no longer show a placeholder icon underneath them.
 
 The interaction model stays the same: Windows selection and shortcuts, the optional inspector, accessible control names, continuous browsing and default-app opening. This is a frontend refinement, with the separately documented import-lock correction included in the same follow-up build.
+
+## Fast reopening of external drives
+
+After the first completed scan, adding the same registered folder/drive again reuses its PC-local catalog instead of enumerating the HDD. Sources with zero indexed media are remembered too. Browsing reads catalog data and saved thumbnail files immediately; cache hits do not probe the original drive. Missing previews are generated only for visible items unless you request bulk preparation.
+
+Reconnecting updates source/card availability and retries visible missing previews without clearing cards, selection or scroll position. Original-file actions still resolve the actual volume identity and validate the file before use. The status refresh checks registered roots; it does not walk source directories or discover files. It is available in Drive tools and runs on window activation and every 30 seconds when idle.
+
+Use **Rescan sources** to discover additions, deletions or edits made outside Luma. This remains an explicit directory walk, not a filesystem journal or incremental change detector. Metadata enrichment following a scan is now limited to the sources actually scanned, and unchanged file versions continue to reuse saved metadata. For reliable offline browsing, prepare previews and check coverage before unplugging; bounded cache eviction rules are unchanged.

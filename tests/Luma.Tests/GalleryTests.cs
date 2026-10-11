@@ -144,6 +144,48 @@ public sealed class GalleryTests : IDisposable
         Assert.Equal(cancelScan ? 125 : 126,(await catalog.QueryAsync(new())).Total);
         Assert.Single((await catalog.QueryAsync(new(AlbumId:album,FavoritesOnly:true))).Items);
     }
+    [Fact]
+    public async Task ReopeningKnownSourceUsesSavedCatalogWithoutDriveProbesOrRescan()
+    {
+        await Seed(3);
+        var item=(await catalog.QueryAsync(new())).Items[0];
+        await catalog.AnnotateAsync(item.Media,true,"keep");
+        var album=await catalog.SaveAlbumAsync("Saved");
+        await catalog.SetAlbumItemsAsync(album,[item.Media],true);
+        var seen=Assert.Single(await catalog.SourcesAsync()).LastSeenUtc;
+        foreach(var file in Directory.GetFiles(root,"*.jpg"))File.Delete(file);
+        File.WriteAllBytes(Path.Combine(root,"not-indexed-yet.jpg"),new byte[5]);
+        resolver.Online=false;
+        var probes=resolver.Calls;
+        // A fresh instance represents a restart; reopening must not access even the
+        // supplied path, inspect changed files, or invoke indexing progress.
+        var restarted=new MediaCache(Path.Combine(root,"catalog.db"),resolver);
+        var result=await restarted.OpenSourceAsync("source",Path.Combine(root,"unavailable"),progress:new UnexpectedScanProgress());
+        Assert.True(result.UsedSavedCatalog); Assert.Equal(3,result.MediaCount);
+        Assert.Equal(probes,resolver.Calls);
+        Assert.Equal(seen,Assert.Single(await restarted.SourcesAsync()).LastSeenUtc);
+        Assert.Single((await restarted.QueryAsync(new(AlbumId:album,FavoritesOnly:true))).Items);
+        Assert.Equal(0,(await restarted.QueryAsync(new(Search:"not-indexed-yet"))).Total);
+        resolver.Online=true;
+        await restarted.ScanAsync("source",root);
+        Assert.Equal(1,(await restarted.QueryAsync(new(Search:"not-indexed-yet"))).Total);
+    }
+    [Fact]
+    public async Task FirstOpenScansButEmptyKnownSourceIsNotScannedAgain()
+    {
+        await catalog.InitializeAsync();
+        var first=await catalog.OpenSourceAsync("source",root);
+        Assert.False(first.UsedSavedCatalog); Assert.Equal(0,first.MediaCount);
+        File.WriteAllBytes(Path.Combine(root,"later.jpg"),new byte[5]);
+        var second=await catalog.OpenSourceAsync("source",root,progress:new UnexpectedScanProgress());
+        Assert.True(second.UsedSavedCatalog); Assert.Equal(0,second.MediaCount);
+        await catalog.ScanAsync("source",root);
+        Assert.Equal(1,(await catalog.OpenSourceAsync("source",root)).MediaCount);
+    }
+    private sealed class UnexpectedScanProgress:IProgress<int>
+    {
+        public void Report(int value)=>throw new InvalidOperationException("Reopening unexpectedly scanned the source.");
+    }
     private sealed class BlockingScanProgress(ManualResetEventSlim entered,ManualResetEventSlim release):IProgress<int>
     {
         private int paused;
@@ -154,6 +196,6 @@ public sealed class GalleryTests : IDisposable
             if(!release.Wait(TimeSpan.FromSeconds(20)))throw new TimeoutException("Test did not release scan.");
         }
     }
-    private sealed class Resolver(string root):ISourceResolver { public bool Online=true; public string? ResolveRoot(string id)=>Online ? root : null; }
+    private sealed class Resolver(string root):ISourceResolver { public bool Online=true; public int Calls; public string? ResolveRoot(string id) { Calls++; return Online ? root : null; } }
     private sealed class Reader:IMetadataReader { public int Calls; public Task<MediaMetadata> ReadAsync(string path,string kind,CancellationToken ct) { Calls++; return Task.FromResult(new MediaMetadata(null,"fixture",640,480)); } }
 }

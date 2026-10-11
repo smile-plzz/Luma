@@ -29,3 +29,7 @@ Coverage matches current catalog version keys against a local cache-file snapsho
 Cancellation keeps completed entries, so another run resumes from cache hits. Source/file mutations inside Luma are blocked while preparation runs. A final coverage pass checks retained keys. Closing the window cancels preparation and waits for all registered cache requests, including canceled gallery loads, before releasing ownership.
 
 Folders are derived directly from indexed relative paths. Only folders containing indexed media (including descendants) appear, and counts include descendants regardless of the active search/filter. No schema migration or rescan is needed for a Phase 1 catalog. Empty folders are intentionally absent.
+
+## Reconnect and reopen optimization
+
+Known source identities reopen from the saved catalog without enumerating the drive, including empty sources. New identities receive an initial scan. Reconnect checks update loaded-card availability in place and retry visible missing previews, preserving scroll and selection. They do not reindex or invalidate valid thumbnails. Checks occur on activation, periodically when idle, or via Refresh drive status. Rescan sources is the explicit file-discovery path; subsequent metadata enrichment is limited to the scanned sources.

@@ -35,6 +35,7 @@
      <Button x:Name="AddSourceButton" Content="+ Add folder or drive" HorizontalAlignment="Stretch" HorizontalContentAlignment="Left" Margin="0,12,0,0" Click="AddSource"/>
      <Expander x:Name="SourceTools" Header="Drive tools" HorizontalAlignment="Stretch" Background="Transparent" BorderThickness="0">
       <StackPanel Spacing="8">
+       <Button Content="Refresh drive status" Click="RefreshDriveStatus"/>
        <Button x:Name="RescanButton" Content="Rescan sources" Click="Rescan"/>
        <Button Content="Refresh metadata" Click="RefreshMetadata"/>
        <Button Content="Rename source label" Click="RenameSourceLabel"/>

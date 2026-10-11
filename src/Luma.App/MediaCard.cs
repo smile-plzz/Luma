@@ -7,7 +7,13 @@ using Microsoft.UI.Xaml.Media.Imaging;
 namespace Luma.App;
 public sealed class MediaCard(LibraryItem item, AppSettings settings) : INotifyPropertyChanged
 {
-    public LibraryItem Item { get; } = item;
+    public LibraryItem Item { get; private set; } = item;
+    public void SetAvailability(bool online)
+    {
+        if (Item.Media.IsAvailable == online) return;
+        Item = Item with { Media = Item.Media with { IsAvailable = online } };
+        Changed(nameof(Item)); Changed(nameof(State)); Changed(nameof(StatusVisibility));
+    }
     public string Name => Path.GetFileName(Item.Media.RelativePath);
     public DateTime Date => new DateTime(settings.SortIndex == 4 ? Item.Metadata?.TakenTicks ?? Item.Media.ModifiedTicks : Item.Media.ModifiedTicks, DateTimeKind.Utc).ToLocalTime();
     public string Group => Date.ToString(settings.GroupIndex switch { 1 => "yyyy", 3 => "dddd, d MMMM yyyy", _ => "MMMM yyyy" });
