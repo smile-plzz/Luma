@@ -161,13 +161,13 @@ try {
     # Reconnect without scanning; keep the existing cards and selection, and leave
     # a newly added file undiscovered until an explicit rescan is requested.
     Select-Card 'fixture003.bmp'
-    $beforeSelection=($gallery.GetCurrentPattern([System.Windows.Automation.SelectionPattern]::Pattern).GetCurrentSelection()[0].GetRuntimeId() -join ',')
+    $beforeSelection=($gallery.GetCurrentPattern([System.Windows.Automation.SelectionPattern]::Pattern).Current.GetSelection()[0].GetRuntimeId() -join ',')
     $beforeReconnect=$gallery.GetCurrentPattern([System.Windows.Automation.ScrollPattern]::Pattern).Current.VerticalScrollPercent
     Move-Item ($fixtureRoot + ' disconnected') $fixtureRoot
     Copy-Item (Join-Path $fixtureRoot 'fixture000.bmp') (Join-Path $fixtureRoot 'not-indexed-yet.bmp')
     (Wait-Control 'Refresh drive status').GetCurrentPattern([System.Windows.Automation.InvokePattern]::Pattern).Invoke()
     Start-Sleep -Seconds 2
-    $selected=$gallery.GetCurrentPattern([System.Windows.Automation.SelectionPattern]::Pattern).GetCurrentSelection()
+    $selected=$gallery.GetCurrentPattern([System.Windows.Automation.SelectionPattern]::Pattern).Current.GetSelection()
     if ($selected.Count -ne 1 -or ($selected[0].GetRuntimeId() -join ',') -ne $beforeSelection) { throw 'Reconnect lost the selected card.' }
     $afterReconnect=$gallery.GetCurrentPattern([System.Windows.Automation.ScrollPattern]::Pattern).Current.VerticalScrollPercent
     if ([Math]::Abs($afterReconnect-$beforeReconnect) -gt 1) { throw 'Reconnect moved the gallery scroll position.' }
