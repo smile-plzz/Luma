@@ -6,7 +6,7 @@ Development of the portable gallery milestone is complete and merged into `main`
 
 ## Run the Windows app
 
-1. Open the [verified Windows download](https://github.com/smile-plzz/Luma/actions/runs/38151631336/artifacts/11706981282) (GitHub sign-in may be required).
+1. Open the [verified Windows download](https://github.com/smile-plzz/Luma/actions/runs/38168157835/artifacts/11713295027) (GitHub sign-in may be required).
 2. Download the **Luma-Gallery-win-x64** ZIP. This executable package is an Actions artifact; the repository files contain the source.
 3. Extract the entire ZIP to a writable folder and run **Luma.App.exe**. Keep the bundled files beside the executable.
 4. Select **Add folder or drive**. Browse the indexed media; thumbnails are cached as you browse.

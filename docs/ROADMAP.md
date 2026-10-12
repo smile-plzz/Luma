@@ -1,6 +1,6 @@
 # Luma delivery roadmap
 
-Status: the portable gallery development milestone is closed and merged into `main` through [PR #6](https://github.com/smile-plzz/Luma/pull/6). The first real-use follow-up, [PR #7](https://github.com/smile-plzz/Luma/pull/7), is also merged and shipped: import-lock correction and minimal UI refinement. [PR #8](https://github.com/smile-plzz/Luma/pull/8) is also merged and shipped: catalog-first reopening and reconnect updates that preserve the gallery. The current stage is real-life testing and everyday use. No additional feature phase is being started automatically.
+Status: the portable gallery development milestone is closed and merged into `main` through [PR #6](https://github.com/smile-plzz/Luma/pull/6). The first real-use follow-up, [PR #7](https://github.com/smile-plzz/Luma/pull/7), is also merged and shipped: import-lock correction and minimal UI refinement. [PR #8](https://github.com/smile-plzz/Luma/pull/8) is also merged and shipped: catalog-first reopening and reconnect updates that preserve the gallery. [PR #9](https://github.com/smile-plzz/Luma/pull/9) is merged and verified: resumable indexing and On this day memories. The current stage is real-life testing and everyday use. No additional feature phase is being started automatically.
 
 | Milestone | Scope | Status |
 | --- | --- | --- |
@@ -20,4 +20,4 @@ The app opens originals in default applications. Cloud accounts, an embedded pla
 
 ## Resumable indexing and memory browsing
 
-Implemented persistent indexing checkpoints with resume/restart/report controls and atomic catalog publication, plus On this day capture-date browsing with date selection and offline previews. Verification and the downloadable shipment are tracked in TESTING_HANDOFF.md. Smart collections, pinned previews and installer/update notifications remain separate future work.
+Implemented persistent indexing checkpoints with resume/restart/report controls and atomic catalog publication, plus On this day capture-date browsing with date selection and offline previews. All automated checks passed (58 core cases per OS, four Windows integration cases and native desktop smoke). The downloadable shipment is tracked in TESTING_HANDOFF.md. Smart collections, pinned previews and installer/update notifications remain separate future work.

@@ -1,5 +1,9 @@
 # QA
 
+## Current verified shipment: indexing recovery and memories
+
+[Run 38168157835](https://github.com/smile-plzz/Luma/actions/runs/38168157835), source `ef23349e82723c98636f9e3a6acad5d7c210f135`: all jobs passed. 58 core cases passed on each of Windows and Linux; four Windows integration tests and the native desktop smoke passed. `memories.txt` verifies capture-date browsing while offline; `reconnect.txt` verifies preserved selection/scroll without indexing. Light/dark screenshots were inspected. PR #9 is merged at `ab08a6c67faf894d09dce5a7a1feddd8b5a90d5e`; its source tree matches the tested commit. See [the handoff](TESTING_HANDOFF.md) for the ZIP and checksum.
+
 ## Current verified shipment
 
 [Run 38151631336](https://github.com/smile-plzz/Luma/actions/runs/38151631336), commit `4e31cf2d0b6473a4dc51fdbc4cada0915912cb17`: all jobs passed. 51 core cases pass on each of Windows and Linux, four Windows integrations pass, and the complete desktop smoke passes. Its reconnect evidence verifies selection and scroll retention and no silent discovery of a new file. PR #8 is merged. See [the current handoff](TESTING_HANDOFF.md) for the verified ZIP.
@@ -61,7 +65,7 @@ The original gallery suite contained 47 core test cases (including three scale c
 
 The first real-drive report showed `SQLite Error 5: database is locked` while browsing during a long scan. `QueryAsync` used an immediate transaction despite executing only SELECTs, competing with the scanner for the writer slot. It now uses a deferred read snapshot; count and rows remain consistent while WAL allows the scan to write.
 
-Two regressions hold an actual scan transaction open while querying capture-date pages, cursor continuation, filtered album/favorites and month navigation. Queries must complete before the scanner is released, must see only committed rows, and must retain organization after either scan commit or cancellation. These raise core coverage to 49 cases per OS. Physical-drive confirmation remains pending.
+Two regressions hold an active scan at a progress checkpoint while querying capture-date pages, cursor continuation, filtered album/favorites and month navigation. Queries must complete before the scanner is released, must see only committed rows, and must retain organization after either scan commit or cancellation. These raise core coverage to 49 cases per OS. Physical-drive confirmation remains pending.
 
 ## Catalog-first reconnect regression
 
@@ -69,6 +73,6 @@ Two additional core tests cover reopening saved sources across a fresh catalog i
 
 ## Resumable indexing and memories follow-up
 
-New automated cases exercise checkpoint reuse after restart/mount change, cancellation and disconnect without partial publication, completed-folder invalidation, checkpoint discard/removal, overlapping scanner exclusion, organization retention, offline capture-date memories, cursor traversal and filters, stale metadata and exact leap-day matching. The native desktop smoke now enters On this day with the source offline, verifies a previous-year capture fixture and excludes files without capture metadata. This follow-up's final run and artifact are recorded in TESTING_HANDOFF.md after verification.
+New automated cases exercise checkpoint reuse after restart/mount change, cancellation and disconnect without partial publication, completed-folder invalidation, checkpoint discard/removal, overlapping scanner exclusion, organization retention, offline capture-date memories, cursor traversal and filters, stale metadata and exact leap-day matching. The native desktop smoke now enters On this day with the source offline, verifies a previous-year capture fixture and excludes files without capture metadata. The successful run and downloadable artifact are recorded in TESTING_HANDOFF.md.
 
 On the physical bench, interrupt a large multi-folder import, close and reopen Luma, reconnect the HDD (including a new drive letter), and choose Resume indexing. Verify saved progress, stable albums/favorites and final totals. Repeat with a large flat folder. Check Indexing report for protected folders. Try another date in memories, then disconnect and verify prepared previews. Test the source's actual filesystem and camera-date conventions; synthetic CI cannot certify those.
