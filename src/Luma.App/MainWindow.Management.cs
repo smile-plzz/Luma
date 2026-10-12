@@ -59,7 +59,7 @@ public sealed partial class MainWindow
             buttons.Children.Add(ActionButton("Browse",()=>Choose(async ()=>
             {
                 ready=false; Sources.SelectedItem=((IEnumerable<SourceChoice>)Sources.ItemsSource).FirstOrDefault(s=>s.Id==source.Id);
-                FolderFilter.Text=""; SearchBox.Text=""; AlbumsBox.SelectedItem=null; Navigation.SelectedIndex=0; MemoryDate.Visibility=Visibility.Collapsed; Heading.Text="Library"; beforeTicks=null; ready=true;
+                FolderFilter.Text=""; SearchBox.Text=""; AlbumsBox.SelectedItem=null; Navigation.SelectedIndex=0; MemoryDate.Visibility=Visibility.Collapsed; Heading.Text="Library"; ClearDateRange(); ready=true;
                 await Refresh();
             })));
             buttons.Children.Add(ActionButton("Rename",()=>Choose(async ()=>
@@ -97,7 +97,7 @@ public sealed partial class MainWindow
         var dialog=new ContentDialog { XamlRoot=Root.XamlRoot,Title="Remove source from Luma?",Content=content,PrimaryButtonText="Remove from Luma",CloseButtonText="Cancel",DefaultButton=ContentDialogButton.Close };
         if(await dialog.ShowAsync()!=ContentDialogResult.Primary)return;
         await catalog.RemoveSourceAsync(id);
-        if(SelectedSource==id) { var wasReady=ready; ready=false; FolderFilter.Text=""; beforeTicks=null; ready=wasReady; }
+        if(SelectedSource==id) { var wasReady=ready; ready=false; FolderFilter.Text=""; ClearDateRange(); ready=wasReady; }
         await LoadSources(); await LoadAlbums(); await Refresh();
         if(removePreviews.IsChecked==true && cache is not null)
             await MaintainCache(async ()=> { var removed=await cache.RemoveAsync(keys); DispatcherQueue.TryEnqueue(()=>Notify($"Removed source and {removed.Count:N0} previews. Originals are untouched.")); });

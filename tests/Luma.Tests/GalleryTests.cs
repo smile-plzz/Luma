@@ -207,5 +207,63 @@ public sealed class GalleryTests : IDisposable
         }
     }
     private sealed class Resolver(string root):ISourceResolver { public bool Online=true; public int Calls; public string? ResolveRoot(string id) { Calls++; return Online ? root : null; } }
+    [Fact] public async Task MonthBucketsAndExactLocalRangeRespectFiltersAndBothDirections()
+    {
+        await Seed(4); var items=(await catalog.QueryAsync(new(Sort:MediaSort.Name))).Items;
+        long T(int month,int day)=>new DateTime(2024,month,day,12,0,0,DateTimeKind.Local).ToUniversalTime().Ticks;
+        for(int i=0;i<4;i++)await catalog.SaveMetadataAsync(items[i].Media,new(T(i<2 ? 1 : 2,i+1),"fixture"));
+        var buckets=await catalog.MonthBucketsAsync(new(Sort:MediaSort.Captured));
+        Assert.Equal(new[]{"2024-02","2024-01"},buckets.Select(m=>m.Month)); Assert.All(buckets,m=>Assert.Equal(2,m.Count));
+        var start=new DateTime(2024,2,1,0,0,0,DateTimeKind.Local).ToUniversalTime().Ticks;
+        var end=new DateTime(2024,3,1,0,0,0,DateTimeKind.Local).ToUniversalTime().Ticks-1;
+        foreach(var descending in new[]{true,false})
+        {
+            var query=new LibraryQuery(Sort:MediaSort.Captured,FromTicks:start,BeforeTicks:end,Descending:descending,Limit:1);
+            var first=await catalog.QueryAsync(query); var next=await catalog.QueryAsync(query with {Cursor=first.Next,KnownTotal=first.Total});
+            Assert.Equal(2,first.Total); Assert.Equal(2,next.Total); Assert.NotEqual(first.Items[0].Id,next.Items[0].Id);
+            Assert.All(first.Items.Concat(next.Items),item=>Assert.InRange(item.Metadata!.TakenTicks!.Value,start,end));
+        }
+        await catalog.AnnotateAsync(items[2].Media,true,"");
+        var filtered=Assert.Single(await catalog.MonthBucketsAsync(new(Sort:MediaSort.Captured,FavoritesOnly:true)));
+        Assert.Equal("2024-02",filtered.Month); Assert.Equal(1,filtered.Count);
+    }
+    [Fact] public async Task TimelineIndexMigratesAndTracksStaleMetadataDeletionAndSourceRemoval()
+    {
+        await Seed(3); var item=(await catalog.QueryAsync(new(Sort:MediaSort.Name))).Items[0];
+        var taken=new DateTime(2030,1,1,0,0,0,DateTimeKind.Utc).Ticks;
+        await catalog.SaveMetadataAsync(item.Media,new(taken,"fixture"));
+        await using(var db=new SqliteConnection(new SqliteConnectionStringBuilder{DataSource=Path.Combine(root,"catalog.db")}.ToString()))
+        {
+            await db.OpenAsync(); await using var cmd=db.CreateCommand();
+            cmd.CommandText="DROP TRIGGER browse_media_insert; DROP TRIGGER browse_media_update; DROP TRIGGER browse_media_delete; DROP TRIGGER browse_metadata_insert; DROP TRIGGER browse_metadata_update; DROP TRIGGER browse_metadata_delete; DROP TABLE browse_dates; DROP TABLE luma_migrations;";
+            await cmd.ExecuteNonQueryAsync();
+        }
+        await catalog.InitializeAsync(); await catalog.InitializeAsync();
+        Assert.Equal(item.Id,(await catalog.QueryAsync(new(Sort:MediaSort.Captured))).Items[0].Id);
+        // A stale metadata replacement must restore the modified-date fallback in the index.
+        await catalog.SaveMetadataAsync(item.Media with {Length=item.Media.Length+1},new(taken,"stale"));
+        Assert.DoesNotContain(await catalog.MonthsAsync(new(Sort:MediaSort.Captured)),m=>m=="2030-01");
+        await catalog.SaveMetadataAsync(item.Media,new(taken,"fixture"));
+        await using(var db=new SqliteConnection(new SqliteConnectionStringBuilder{DataSource=Path.Combine(root,"catalog.db")}.ToString()))
+        {
+            await db.OpenAsync(); await using var cmd=db.CreateCommand(); cmd.CommandText="DELETE FROM metadata"; await cmd.ExecuteNonQueryAsync();
+        }
+        Assert.DoesNotContain(await catalog.MonthsAsync(new(Sort:MediaSort.Captured)),m=>m=="2030-01");
+        await catalog.RemoveSourceAsync("source"); Assert.Empty((await catalog.QueryAsync(new(Sort:MediaSort.Captured))).Items);
+    }
+    [Fact] public async Task MetadataBatchesResumeAfterCancellationWithoutRereadingSavedFiles()
+    {
+        await Seed(325); using var cancellation=new CancellationTokenSource();
+        var reader=new CancellingReader(cancellation);
+        await Assert.ThrowsAnyAsync<OperationCanceledException>(()=>catalog.EnrichAsync(reader,ct:cancellation.Token));
+        var resumed=new Reader(); Assert.Equal(225,await catalog.EnrichAsync(resumed)); Assert.Equal(225,resumed.Calls);
+        Assert.Equal(0,await catalog.EnrichAsync(resumed));
+    }
+    private sealed class CancellingReader(CancellationTokenSource cancellation):IMetadataReader
+    {
+        private int calls;
+        public Task<MediaMetadata> ReadAsync(string path,string kind,CancellationToken ct)
+        { if(++calls==150)cancellation.Cancel(); ct.ThrowIfCancellationRequested(); return Task.FromResult(new MediaMetadata(null,"fixture")); }
+    }
     private sealed class Reader:IMetadataReader { public int Calls; public Task<MediaMetadata> ReadAsync(string path,string kind,CancellationToken ct) { Calls++; return Task.FromResult(new MediaMetadata(null,"fixture",640,480)); } }
 }

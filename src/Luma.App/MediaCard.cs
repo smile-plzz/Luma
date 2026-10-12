@@ -31,7 +31,7 @@ public sealed class MediaCard(LibraryItem item, AppSettings settings, DateOnly? 
     public double CutOpacity => IsCut ? 0.45 : 1;
     public Visibility PlaceholderVisibility => Thumbnail is null ? Visibility.Visible : Visibility.Collapsed;
     public bool Realized { get; set; }
-    public bool Loading { get; set; }
+    public CancellationTokenSource? ThumbnailRequest { get; set; }
     public BitmapImage? Thumbnail { get => thumbnail; set { thumbnail=value; Changed(nameof(Thumbnail)); Changed(nameof(PlaceholderVisibility)); } }
     private BitmapImage? thumbnail;
     public void UpdateView() { foreach(var name in new[]{nameof(TileWidth),nameof(TileHeight),nameof(Spacing),nameof(Labels),nameof(Details),nameof(Fit)}) Changed(name); }

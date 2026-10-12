@@ -15,7 +15,7 @@ public sealed partial class MainWindow
         AlbumsBox.ItemsSource=albums; AlbumsBox.SelectedItem=albums.FirstOrDefault(a=>a.Id==id); ready=r;
     }
     private async void AlbumChanged(object sender,SelectionChangedEventArgs e)
-    { if(!ready)return; Heading.Text=IsMemories ? "On this day" : (AlbumsBox.SelectedItem as Album)?.Name ?? "Library"; beforeTicks=null; await Guard(Refresh); }
+    { if(!ready)return; Heading.Text=IsMemories ? "On this day" : (AlbumsBox.SelectedItem as Album)?.Name ?? "Library"; ClearDateRange(); await Guard(Refresh); }
     private async void LeaveAlbum(object sender,RoutedEventArgs e) { AlbumsBox.SelectedItem=null; await Guard(Refresh); }
     private async void NewAlbum(object sender,RoutedEventArgs e) => await Guard(async () =>
     {
@@ -52,14 +52,14 @@ public sealed partial class MainWindow
     },true);
     private async Task RefreshMetadataFor(string? source)
     {
-        scanning=true; scanCancellation=new(); Busy.IsActive=true; CancelButton.Visibility=Visibility.Visible;
+        scanning=true; workClock.Restart(); workTimer.Start(); scanCancellation=new(); Busy.IsActive=true; CancelButton.Visibility=Visibility.Visible;
         try
         {
             var progress=new Progress<int>(n=>Status.Text=$"Metadata · {n:N0} updated");
             var count=await Task.Run(()=>catalog.EnrichAsync(new WindowsMetadataReader(),source,scanCancellation.Token,progress));
             Notify($"Metadata refreshed for {count:N0} changed files. Unsupported dates use modification time.");
         }
-        finally { scanning=false; Busy.IsActive=false; CancelButton.Visibility=Visibility.Collapsed; if(ready)await Refresh(); }
+        finally { scanning=false; workClock.Stop(); workTimer.Stop(); WorkElapsed.Text=""; Busy.IsActive=false; CancelButton.Visibility=Visibility.Collapsed; if(ready)await Refresh(); }
     }
     private void StartDrag(object sender,DragItemsStartingEventArgs e)
     {
@@ -123,7 +123,8 @@ public sealed partial class MainWindow
     {
         var destination=await PickFolder(); if(destination is null)return;
         var media=MediaGrid.SelectedItems.Cast<MediaCard>().Select(c=>c.Item.Media).ToArray();
-        await TransferPaths(media.Select(Resolve).ToArray(),media,destination,move);
+        var paths=await Task.Run(()=>media.Select(Resolve).ToArray());
+        await TransferPaths(paths,media,destination,move);
     }
     private async Task TransferData(DataPackageView data,string destination,bool move,bool clearClipboard=false)
     {

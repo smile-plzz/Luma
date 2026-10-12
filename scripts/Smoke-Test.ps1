@@ -267,6 +267,38 @@ try {
     [System.Windows.Forms.SendKeys]::SendWait('{ESC}')
     Wait-Control 'visible-raw.dng' | Out-Null
     if ((Wait-Control 'Settings').Current.IsOffscreen -or (Wait-Control 'Storage & previews').Current.IsOffscreen) { throw 'Pinned maintenance destinations are offscreen.' }
+    (Wait-Control 'Browse month').GetCurrentPattern([System.Windows.Automation.ExpandCollapsePattern]::Pattern).Expand()
+    (Wait-Control 'September 2026 · 29').GetCurrentPattern([System.Windows.Automation.SelectionItemPattern]::Pattern).Select()
+    Wait-Control '29 of 261 items · Filtered' | Out-Null
+    Wait-Control 'fixture000.bmp' | Out-Null
+    if (Find-Control 'visible-raw.dng') { throw 'Month filter included another month.' }
+    (Wait-Control 'Newer month').GetCurrentPattern([System.Windows.Automation.InvokePattern]::Pattern).Invoke()
+    Wait-Control '1 of 261 items · Filtered' | Out-Null
+    Wait-Control 'visible-raw.dng' | Out-Null
+    (Wait-Control 'Older month').GetCurrentPattern([System.Windows.Automation.InvokePattern]::Pattern).Invoke()
+    Wait-Control '29 of 261 items · Filtered' | Out-Null
+    (Wait-Control 'Select').GetCurrentPattern([System.Windows.Automation.TogglePattern]::Pattern).Toggle()
+    Select-Card 'fixture000.bmp'
+    $second=Wait-Control 'fixture001.bmp'; $pattern=$null
+    while ($second -and !$second.TryGetCurrentPattern([System.Windows.Automation.SelectionItemPattern]::Pattern,[ref]$pattern)) {
+        $second=[System.Windows.Automation.TreeWalker]::ControlViewWalker.GetParent($second)
+    }
+    $second.SetFocus(); [System.Windows.Forms.SendKeys]::SendWait(' ')
+    Wait-Control '2 selected' | Out-Null
+    (Wait-Control 'Copy').GetCurrentPattern([System.Windows.Automation.InvokePattern]::Pattern).Invoke()
+    Wait-Control '2 file(s) ready to copy. Paste into a destination folder.' | Out-Null
+    $clipboardPaths=@(powershell.exe -NoProfile -STA -Command "Add-Type -AssemblyName System.Windows.Forms; [System.Windows.Forms.Clipboard]::GetFileDropList()")
+    if ($clipboardPaths.Count -ne 2 -or !($clipboardPaths | Where-Object { $_ -like '*fixture000.bmp' }) -or !($clipboardPaths | Where-Object { $_ -like '*fixture001.bmp' })) { throw 'Multi-file clipboard contents are incorrect.' }
+    $rectangle=$window.Current.BoundingRectangle
+    $bitmap=[System.Drawing.Bitmap]::new([int]$rectangle.Width,[int]$rectangle.Height)
+    $graphics=[System.Drawing.Graphics]::FromImage($bitmap); $graphics.CopyFromScreen([int]$rectangle.X,[int]$rectangle.Y,0,0,$bitmap.Size)
+    $bitmap.Save((Join-Path (Get-Location) 'artifacts/qa/months-selection.png')); $graphics.Dispose(); $bitmap.Dispose()
+    (Wait-Control 'Selection actions').GetCurrentPattern([System.Windows.Automation.InvokePattern]::Pattern).Invoke()
+    (Wait-Control 'Clear selection').GetCurrentPattern([System.Windows.Automation.InvokePattern]::Pattern).Invoke()
+    (Wait-Control 'Select').GetCurrentPattern([System.Windows.Automation.TogglePattern]::Pattern).Toggle()
+    (Wait-Control 'All months').GetCurrentPattern([System.Windows.Automation.InvokePattern]::Pattern).Invoke()
+    Wait-Control '261 items' | Out-Null
+    'PASS: exact month counts and boundaries, older/newer navigation, two-file selection mode, Windows file clipboard and all-month reset.' | Set-Content artifacts/qa/months-selection.txt
     'PASS: non-everyday file visible by default, filter counts and removal, Reset reveals files, consolidated navigation.' | Set-Content artifacts/qa/filters-navigation.txt
     (Wait-Control 'Activity').GetCurrentPattern([System.Windows.Automation.InvokePattern]::Pattern).Invoke()
     Wait-Control 'Pause current work' | Out-Null

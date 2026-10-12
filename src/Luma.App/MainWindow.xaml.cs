@@ -32,6 +32,8 @@ public sealed partial class MainWindow : Window
     private bool checkingSources;
 
     private long total;
+    private readonly Stopwatch workClock = new();
+    private readonly DispatcherTimer workTimer = new() { Interval=TimeSpan.FromSeconds(1) };
     private readonly System.Collections.ObjectModel.ObservableCollection<MediaCard> cards = new();
     private readonly DispatcherTimer availabilityTimer = new() { Interval = TimeSpan.FromSeconds(30) };
     private nint Handle => WinRT.Interop.WindowNative.GetWindowHandle(this);
@@ -48,6 +50,7 @@ public sealed partial class MainWindow : Window
         AppWindow.MoveAndResize(new global::Windows.Graphics.RectInt32(work.X + (work.Width - width) / 2,
             work.Y + (work.Height - height) / 2, width, height));
         Closed += OnClosed;
+        workTimer.Tick+=(_,_)=>WorkElapsed.Text=workClock.IsRunning ? workClock.Elapsed.ToString(@"hh\:mm\:ss") : "";
         Activated += async (_, e) =>
         {
             if (e.WindowActivationState != WindowActivationState.Deactivated && ready && !scanning && !operation)
@@ -93,7 +96,7 @@ public sealed partial class MainWindow : Window
 
     private async void OnClosed(object sender, WindowEventArgs args)
     {
-        ready = false; availabilityTimer.Stop(); scanCancellation?.Cancel(); queryCancellation?.Cancel(); searchCancellation?.Cancel(); preparationCancellation?.Cancel();
+        ready = false; availabilityTimer.Stop(); workTimer.Stop(); scanCancellation?.Cancel(); queryCancellation?.Cancel(); searchCancellation?.Cancel(); preparationCancellation?.Cancel();
         try { await Task.WhenAll(cacheTasks.ToArray()); } catch (Exception) { /* Pending work must finish before releasing cache ownership. */ }
         cache?.Dispose();
     }
@@ -161,7 +164,7 @@ public sealed partial class MainWindow : Window
     private Task RescanCurrent() => RefreshSources(SelectedSource);
     private async Task Scan(IEnumerable<SourceInfo> sources, bool reuseExisting = false)
     {
-        scanning = true; scanCancellation = new(); Busy.IsActive = true; CancelButton.Visibility = Visibility.Visible;
+        scanning = true; workClock.Restart(); workTimer.Start(); scanCancellation = new(); Busy.IsActive = true; CancelButton.Visibility = Visibility.Visible;
         AddSourceButton.IsEnabled = false;
         bool published = false;
         try
@@ -172,7 +175,7 @@ public sealed partial class MainWindow : Window
             {
                 var checkpoint=(await catalog.IndexingCheckpointsAsync()).FirstOrDefault(c=>c.SourceId==source.Id);
                 Status.Text = (checkpoint is null ? "Scanning " : $"Resuming {checkpoint.CompletedFolders:N0} saved folders · ") + source.RootPath;
-                var progress = new Progress<int>(n => Status.Text = $"Indexing {n:N0} items · {source.RootPath}");
+                var progress = new Progress<int>(n => Status.Text = $"Finding media · {n:N0} saved · {source.RootPath}");
                 var opened = reuseExisting
                     ? await Task.Run(() => catalog.OpenSourceAsync(source.Id, source.RootPath, scanCancellation.Token, progress))
                     : new SourceOpenResult(false, await Task.Run(() => catalog.ScanAsync(source.Id, source.RootPath, scanCancellation.Token, progress)));
@@ -187,15 +190,16 @@ public sealed partial class MainWindow : Window
                 return;
             }
             Status.Text = "Library available · reading capture dates and dimensions…";
+            var metadataProgress=new Progress<int>(n=>Status.Text=$"Reading dates · {n:N0} updated · Library ready to browse");
             foreach (var metadataSource in scannedIds)
             await Task.Run(() => catalog.EnrichAsync(new WindowsMetadataReader(), metadataSource, scanCancellation.Token,
-                new Progress<int>(n => DispatcherQueue.TryEnqueue(() => Status.Text = $"Metadata · {n:N0} updated"))));
+                metadataProgress));
             var warnings=(await catalog.IndexingWarningsAsync()).Count(w=>scannedIds.Contains(w.SourceId));
-            Notify(warnings>0 ? $"Indexed {count:N0} media files; {warnings} inaccessible folder(s) skipped. Older catalog entries were retained. See Drive tools → Indexing report, fix access, then rescan." : $"Scan complete: {count:N0} media files. Metadata saved. Navigate or Reset to apply new dates without shifting your current view.");
+            Notify(warnings>0 ? $"Indexed {count:N0} media files; {warnings} inaccessible folder(s) skipped. Older catalog entries were retained. See Activity, fix access, then refresh." : $"Scan complete: {count:N0} media files. Metadata saved. Navigate or Reset to apply new dates without shifting your current view.");
         }
         catch(OperationCanceledException)
         {
-            Notify("Indexing paused. Completed folders are saved on this PC. Choose Resume indexing to continue; your published gallery is intact.");
+            Notify("Indexing paused. Completed folders are saved on this PC. Choose Activity → Resume paused indexing to continue; your published gallery is intact.");
             throw;
         }
         catch(Exception)
@@ -205,7 +209,7 @@ public sealed partial class MainWindow : Window
         }
         finally
         {
-            scanning = false; Busy.IsActive = false; CancelButton.Visibility = Visibility.Collapsed;
+            scanning = false; workClock.Stop(); workTimer.Stop(); WorkElapsed.Text=""; Busy.IsActive = false; CancelButton.Visibility = Visibility.Collapsed;
             AddSourceButton.IsEnabled = true;
             await LoadSources(); if(!published && ready) await Refresh();
         }
@@ -216,6 +220,7 @@ public sealed partial class MainWindow : Window
         var card = Selected; var selected = MediaGrid.SelectedItems.Cast<MediaCard>().ToArray();
         SelectionBar.Visibility = selected.Length > 0 ? Visibility.Visible : Visibility.Collapsed;
         SelectionCount.Text = $"{selected.Length:N0} selected";
+        ToolTipService.SetToolTip(SelectionCount,$"{selected.Sum(c=>(double)c.Item.Media.Length)/1024/1024:N1} MB · {selected.Count(c=>!c.Item.Media.IsAvailable):N0} offline. Reconnect offline sources to copy originals.");
         RefreshSelectionDetails();
         TagsBox.Text = card?.Item.Tags ?? ""; FavoriteButton.Content = selected.Length > 0 && selected.All(c => c.Item.Favorite) ? "★ Unfavorite" : "☆ Favorite";
     }
@@ -233,7 +238,7 @@ public sealed partial class MainWindow : Window
         while (element is not null && element.DataContext is not MediaCard) element = VisualTreeHelper.GetParent(element) as FrameworkElement;
         if (element?.DataContext is MediaCard card && !MediaGrid.SelectedItems.Contains(card)) MediaGrid.SelectedItem = card;
     }
-    private async void GridDoubleTapped(object sender, DoubleTappedRoutedEventArgs e) => await Guard(Open);
+    private async void GridDoubleTapped(object sender, DoubleTappedRoutedEventArgs e) { if(SelectMode.IsChecked!=true)await Guard(Open); }
     private string Resolve(CachedMedia media)
     {
         var root = resolver.ResolveRoot(media.SourceId) ?? throw new IOException("This drive is offline. Reconnect it to use the original file.");
@@ -253,16 +258,21 @@ public sealed partial class MainWindow : Window
         if (Selected is not null) Process.Start(new ProcessStartInfo("explorer.exe", $"/select,\"{Resolve(Selected.Item.Media)}\"") { UseShellExecute = true });
         return Task.CompletedTask;
     });
-    private async void CopyPath(object sender, RoutedEventArgs e) => await Guard(() =>
+    private async void CopyPath(object sender, RoutedEventArgs e) => await Guard(async () =>
     {
-        if (Selected is not null) { var data = new DataPackage(); data.SetText(Resolve(Selected.Item.Media)); Clipboard.SetContent(data); Clipboard.Flush(); }
-        return Task.CompletedTask;
-    });
+        var selected=MediaGrid.SelectedItems.Cast<MediaCard>().Select(c=>c.Item.Media).ToArray();
+        if(selected.Length==0)return;
+        var paths=await Task.Run(()=>selected.Select(Resolve).ToArray());
+        var data=new DataPackage(); data.SetText(string.Join(Environment.NewLine,paths)); Clipboard.SetContent(data); Clipboard.Flush();
+        Notify($"Copied {paths.Length:N0} file paths.");
+    },true);
     private async Task Copy(bool cut)
     {
         var selected = MediaGrid.SelectedItems.Cast<MediaCard>().ToArray(); if (selected.Length == 0) return;
         var files = new List<IStorageItem>();
-        foreach (var card in selected) files.Add(await StorageFile.GetFileFromPathAsync(Resolve(card.Item.Media)));
+        Status.Text=$"Preparing {selected.Length:N0} files for the clipboard…";
+        var paths=await Task.Run(()=>selected.Select(c=>Resolve(c.Item.Media)).ToArray());
+        foreach(var path in paths)files.Add(await StorageFile.GetFileFromPathAsync(path));
         var data = new DataPackage { RequestedOperation = cut ? DataPackageOperation.Move : DataPackageOperation.Copy };
         data.SetStorageItems(files);
         data.SetData("Luma.FileSelection.v1", JsonSerializer.Serialize(selected.Select(c => c.Item.Media).ToArray()));

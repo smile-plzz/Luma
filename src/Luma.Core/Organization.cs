@@ -78,26 +78,67 @@ public sealed partial class MediaCache
 
     public async Task<int> EnrichAsync(IMetadataReader reader, string? sourceId = null, CancellationToken ct = default, IProgress<int>? progress = null)
     {
-        int count = 0;
-        await foreach (var media in EnumerateCachedAsync(sourceId, ct))
+        int count = 0; string lastSource="",lastPath="";
+        await using var db=new SqliteConnection(connectionString); await db.OpenAsync(ct);
+        while(true)
         {
-            ct.ThrowIfCancellationRequested();
-            await using var db = new SqliteConnection(connectionString); await db.OpenAsync(ct);
-            await using var existing = db.CreateCommand();
-            existing.CommandText = "SELECT 1 FROM metadata WHERE source_id=$id AND relative_path=$path AND length=$len AND modified_ticks=$ticks";
-            existing.Parameters.AddWithValue("$id", media.SourceId); existing.Parameters.AddWithValue("$path", media.RelativePath);
-            existing.Parameters.AddWithValue("$len", media.Length); existing.Parameters.AddWithValue("$ticks", media.ModifiedTicks);
-            if (await existing.ExecuteScalarAsync(ct) is not null) continue;
-            var root = sourceResolver?.ResolveRoot(media.SourceId); if (root is null) continue;
-            var path = SourcePaths.Combine(root, media.RelativePath);
-            try
+            // Read bounded batches of missing/stale metadata; release the reader before
+            // native decoding or writes. An unchanged library never opens its originals.
+            var batch=new List<CachedMedia>();
+            await using(var cmd=db.CreateCommand())
             {
-                if (!VersionMatches(path, media)) continue;
-                var metadata = await reader.ReadAsync(path, media.Kind, ct);
-                if (sourceResolver?.ResolveRoot(media.SourceId) != root || !VersionMatches(path, media)) continue;
-                await SaveMetadataAsync(media, metadata, ct); count++; progress?.Report(count);
+                cmd.CommandText="""
+                    SELECT m.source_id,m.relative_path,m.length,m.modified_ticks,m.kind FROM media m
+                    LEFT JOIN metadata d ON d.source_id=m.source_id AND d.relative_path=m.relative_path AND d.length=m.length AND d.modified_ticks=m.modified_ticks
+                    WHERE ($source IS NULL OR m.source_id=$source) AND d.source_id IS NULL
+                    AND (m.source_id,m.relative_path)>($lastSource,$lastPath)
+                    ORDER BY m.source_id,m.relative_path LIMIT 100
+                    """;
+                cmd.Parameters.AddWithValue("$source",(object?)sourceId ?? DBNull.Value);
+                cmd.Parameters.AddWithValue("$lastSource",lastSource); cmd.Parameters.AddWithValue("$lastPath",lastPath);
+                await using var r=await cmd.ExecuteReaderAsync(ct);
+                while(await r.ReadAsync(ct))batch.Add(new(r.GetString(0),r.GetString(1),r.GetInt64(2),r.GetInt64(3),r.GetString(4),false));
             }
-            catch (IOException) { } catch (UnauthorizedAccessException) { }
+            if(batch.Count==0)break;
+            var updates=new List<(CachedMedia Media,MediaMetadata Data)>();
+            foreach(var media in batch)
+            {
+                ct.ThrowIfCancellationRequested(); lastSource=media.SourceId; lastPath=media.RelativePath;
+                var root=sourceResolver?.ResolveRoot(media.SourceId); if(root is null)continue;
+                var path=SourcePaths.Combine(root,media.RelativePath);
+                try
+                {
+                    if(!VersionMatches(path,media))continue;
+                    var data=await reader.ReadAsync(path,media.Kind,ct);
+                    if(sourceResolver?.ResolveRoot(media.SourceId)!=root || !VersionMatches(path,media))continue;
+                    updates.Add((media,data));
+                }
+                catch(IOException) { } catch(UnauthorizedAccessException) { }
+            }
+            // No filesystem/codec work while holding SQLite's write transaction.
+            await using(var tx=db.BeginTransaction())
+            {
+                await using var save=db.CreateCommand(); save.Transaction=tx;
+                save.CommandText="""
+                    INSERT INTO metadata SELECT source_id,relative_path,length,modified_ticks,$taken,$origin,$width,$height,$duration,$orientation
+                    FROM media WHERE source_id=$id AND relative_path=$path AND length=$len AND modified_ticks=$ticks
+                    ON CONFLICT(source_id,relative_path) DO UPDATE SET length=excluded.length,modified_ticks=excluded.modified_ticks,taken_ticks=excluded.taken_ticks,date_origin=excluded.date_origin,width=excluded.width,height=excluded.height,duration=excluded.duration,orientation=excluded.orientation
+                    """;
+                foreach(var name in new[]{"$id","$path","$origin"})save.Parameters.Add(name,SqliteType.Text);
+                foreach(var name in new[]{"$len","$ticks","$taken","$width","$height","$orientation"})save.Parameters.Add(name,SqliteType.Integer);
+                save.Parameters.Add("$duration",SqliteType.Real); save.Prepare();
+                foreach(var (media,data) in updates)
+                {
+                    save.Parameters["$id"].Value=media.SourceId; save.Parameters["$path"].Value=media.RelativePath;
+                    save.Parameters["$len"].Value=media.Length; save.Parameters["$ticks"].Value=media.ModifiedTicks;
+                    save.Parameters["$taken"].Value=(object?)data.TakenTicks ?? DBNull.Value; save.Parameters["$origin"].Value=data.DateOrigin;
+                    save.Parameters["$width"].Value=data.Width; save.Parameters["$height"].Value=data.Height;
+                    save.Parameters["$duration"].Value=data.DurationSeconds; save.Parameters["$orientation"].Value=data.Orientation;
+                    count+=await save.ExecuteNonQueryAsync(ct);
+                }
+                await tx.CommitAsync(ct);
+            }
+            progress?.Report(count);
         }
         return count;
     }
