@@ -112,6 +112,7 @@ public sealed partial class MediaCache
     // Call only after a confirmed individual filesystem move. Organization follows the stable ID.
     public async Task RelocateAsync(CachedMedia old, CachedMedia target, CancellationToken ct = default)
     {
+        using var lease = IndexingLease();
         await using var db = new SqliteConnection(connectionString); await db.OpenAsync(ct);
         await using var tx = (SqliteTransaction)await db.BeginTransactionAsync(ct);
         await using var cmd = db.CreateCommand(); cmd.Transaction = tx;
@@ -121,6 +122,9 @@ public sealed partial class MediaCache
             UPDATE annotations SET source_id=$newid,relative_path=$newpath WHERE source_id=$id AND relative_path=$path;
             UPDATE metadata SET source_id=$newid,relative_path=$newpath WHERE source_id=$id AND relative_path=$path;
             DELETE FROM media WHERE source_id=$id AND relative_path=$path;
+            DELETE FROM scan_media WHERE source_id IN($id,$newid);
+            DELETE FROM scan_folders WHERE source_id IN($id,$newid);
+            DELETE FROM scan_jobs WHERE source_id IN($id,$newid);
             """;
         cmd.Parameters.AddWithValue("$id",old.SourceId); cmd.Parameters.AddWithValue("$path",old.RelativePath);
         cmd.Parameters.AddWithValue("$newid",target.SourceId); cmd.Parameters.AddWithValue("$newpath",target.RelativePath);

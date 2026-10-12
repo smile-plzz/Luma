@@ -17,3 +17,7 @@ Use [TESTING_HANDOFF.md](TESTING_HANDOFF.md) for the exact tested commit, downlo
 Keep the shipped code stable while testing. Prioritize reported data-integrity or startup failures first, then recurring browsing/performance problems, then visual/usability refinements. A future fix should reproduce the report, receive appropriate regression checks, and identify its own tested build before shipment.
 
 The app opens originals in default applications. Cloud accounts, an embedded player/editor, automatic original-file rearrangement and full-original backup are outside this milestone. Preview pinning needs a separate capacity design. Signing and an installer are not required to begin testing the unsigned portable build.
+
+## Resumable indexing and memory browsing
+
+Implemented persistent indexing checkpoints with resume/restart/report controls and atomic catalog publication, plus On this day capture-date browsing with date selection and offline previews. Verification and the downloadable shipment are tracked in TESTING_HANDOFF.md. Smart collections, pinned previews and installer/update notifications remain separate future work.

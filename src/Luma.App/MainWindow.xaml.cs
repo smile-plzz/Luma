@@ -87,6 +87,8 @@ public sealed partial class MainWindow : Window
         var source = resolver.Register(folder);
         await Task.Run(() => catalog.ScanAsync(source.Id, folder));
         await Task.Run(() => catalog.EnrichAsync(new WindowsMetadataReader(),source.Id));
+        var memory=(await catalog.QueryAsync(new(SourceId:source.Id,Search:"fixture003.bmp"))).Items.Single();
+        await catalog.SaveMetadataAsync(memory.Media,new(DateTime.Now.Date.AddYears(-1).AddHours(12).ToUniversalTime().Ticks,"Smoke capture date"));
     }
 
     private async void OnClosed(object sender, WindowEventArgs args)
@@ -112,6 +114,10 @@ public sealed partial class MainWindow : Window
         checkingSources = true;
         try
         {
+            var checkpoints = await catalog.IndexingCheckpointsAsync();
+            ResumeIndexingButton.Visibility = IndexingHint.Visibility = checkpoints.Count > 0 ? Visibility.Visible : Visibility.Collapsed;
+            ResumeIndexingButton.IsEnabled = !scanning;
+            IndexingHint.Text = $"{checkpoints.Count} paused source(s) · {checkpoints.Sum(c => c.CompletedFolders):N0} folders saved. Reconnect and resume.";
             var selected = SelectedSource;
             var all = await Task.Run(() => catalog.SourcesAsync());
             var labels = await catalog.SourceLabelsAsync();
@@ -148,6 +154,28 @@ public sealed partial class MainWindow : Window
         var source = await Task.Run(() => resolver.Register(folder)); await Scan(new[] { new SourceInfo(source.Id, source.RootPath, DateTime.UtcNow, true) }, reuseExisting: true);
     }, true);
     private async void RefreshDriveStatus(object sender, RoutedEventArgs e) => await Guard(LoadSources, true);
+    private async void ResumeIndexing(object sender, RoutedEventArgs e) => await Guard(async () =>
+    {
+        var pending=(await catalog.IndexingCheckpointsAsync()).Select(c=>c.SourceId).ToHashSet();
+        var sources=await Task.Run(()=>catalog.SourcesAsync());
+        var connected=sources.Where(s=>pending.Contains(s.Id) && s.IsOnline).ToArray();
+        if(connected.Length==0) { Notify("Reconnect a drive with paused indexing to resume."); return; }
+        await Scan(connected);
+    },true);
+    private async void ShowIndexingReport(object sender,RoutedEventArgs e) => await Guard(async () =>
+    {
+        var checkpoints=await catalog.IndexingCheckpointsAsync();
+        var warnings=await catalog.IndexingWarningsAsync();
+        var lines=checkpoints.Select(c=>$"Paused: {c.MediaCount:N0} file records, {c.CompletedFolders:N0} completed folders ({c.SourceId})")
+            .Concat(warnings.Select(w=>$"Skipped {w.Folder} ({w.SourceId}): {w.Message}"));
+        await new ContentDialog { XamlRoot=Root.XamlRoot,Title="Indexing report",Content=new ScrollViewer { MaxHeight=400,Content=new TextBlock { Text=lines.Any() ? string.Join("\n\n",lines) : "No paused indexing or skipped folders.",TextWrapping=TextWrapping.Wrap } },CloseButtonText="Close" }.ShowAsync();
+    },true);
+    private async void RestartIndexing(object sender,RoutedEventArgs e) => await Guard(async () =>
+    {
+        if(SelectedSource is not string id) { Notify("Select a single source first."); return; }
+        if(!await Confirm("Restart indexing?","Discard this source’s indexing checkpoint and scan from the beginning. Your saved gallery and originals stay intact.","Restart")) return;
+        await catalog.DiscardIndexingAsync(id); await RescanCurrent();
+    },true);
     private async void Rescan(object sender, RoutedEventArgs e) => await Guard(RescanCurrent, true);
     private async Task RescanCurrent()
     {
@@ -165,7 +193,8 @@ public sealed partial class MainWindow : Window
             var scannedIds = new List<string>();
             foreach (var source in sources)
             {
-                Status.Text = "Scanning " + source.RootPath;
+                var checkpoint=(await catalog.IndexingCheckpointsAsync()).FirstOrDefault(c=>c.SourceId==source.Id);
+                Status.Text = (checkpoint is null ? "Scanning " : $"Resuming {checkpoint.CompletedFolders:N0} saved folders · ") + source.RootPath;
                 var progress = new Progress<int>(n => Status.Text = $"Indexing {n:N0} items · {source.RootPath}");
                 var opened = reuseExisting
                     ? await Task.Run(() => catalog.OpenSourceAsync(source.Id, source.RootPath, scanCancellation.Token, progress))
@@ -184,7 +213,18 @@ public sealed partial class MainWindow : Window
             foreach (var metadataSource in scannedIds)
             await Task.Run(() => catalog.EnrichAsync(new WindowsMetadataReader(), metadataSource, scanCancellation.Token,
                 new Progress<int>(n => DispatcherQueue.TryEnqueue(() => Status.Text = $"Metadata · {n:N0} updated"))));
-            Notify($"Scan complete: {count:N0} media files. Metadata saved. Navigate or Reset to apply new dates without shifting your current view.");
+            var warnings=(await catalog.IndexingWarningsAsync()).Count(w=>scannedIds.Contains(w.SourceId));
+            Notify(warnings>0 ? $"Indexed {count:N0} media files; {warnings} inaccessible folder(s) skipped. Older catalog entries were retained. See Drive tools → Indexing report, fix access, then rescan." : $"Scan complete: {count:N0} media files. Metadata saved. Navigate or Reset to apply new dates without shifting your current view.");
+        }
+        catch(OperationCanceledException)
+        {
+            Notify("Indexing paused. Completed folders are saved on this PC. Choose Resume indexing to continue; your published gallery is intact.");
+            throw;
+        }
+        catch(Exception)
+        {
+            Status.Text="Indexing paused · checkpoint saved";
+            throw;
         }
         finally
         {

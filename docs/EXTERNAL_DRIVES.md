@@ -33,3 +33,9 @@ Folders are derived directly from indexed relative paths. Only folders containin
 ## Reconnect and reopen optimization
 
 Known source identities reopen from the saved catalog without enumerating the drive, including empty sources. New identities receive an initial scan. Reconnect checks update loaded-card availability in place and retry visible missing previews, preserving scroll and selection. They do not reindex or invalidate valid thumbnails. Checks occur on activation, periodically when idle, or via Refresh drive status. Rescan sources is the explicit file-discovery path; subsequent metadata enrichment is limited to the scanned sources.
+
+## Interrupted indexing
+
+New imports and explicit scans checkpoint on the PC every 100 media records and at folder boundaries. Resume uses stable source identity, skips completed folders and reuses records in the interrupted folder while enumerating its filenames. The published catalog remains intact until traversal finishes. Drive tools exposes Resume indexing, Restart selected indexing and Indexing report. Folder changes can invalidate a saved snapshot; content edits without a directory timestamp change require a subsequent fresh scan. See [resumable indexing](GALLERY_BUILD.md#resumable-indexing) for recovery, access-denied behavior and limits. Ordinary reconnect remains scan-free.
+
+On this day uses version-matched stored capture dates and the same offline thumbnail cache. It does not need to scan or read original files to select memories.
