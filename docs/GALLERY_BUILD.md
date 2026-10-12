@@ -99,3 +99,26 @@ Choose **On this day** in the sidebar to see media captured on this month and da
 Memories read saved, version-matched capture metadata and cached previews. They work offline without scanning or decoding originals. A missing preview shows a placeholder until the source is available. Files without capture dates, modification-date fallbacks, dates from the selected year or future years, and stale metadata are excluded. Use **Refresh metadata** on a connected source to enrich an older catalog. Current Windows metadata support does not treat video encoding dates as capture dates, so such videos stay in the regular library.
 
 Dates follow the PC's local timezone, consistent with the timeline; original camera timezones may be unknown. February 29 memories appear only when February 29 is selected, without shifting them to February 28 or March 1. The empty state explains missing dates and offers another day. No uploads, face analysis, automatic albums or duplicate media files are created.
+
+## Managing sources and refreshing the library
+
+**Manage sources** is always visible beneath Folders & drives. Each entry shows its label, actual path, connected/offline state, saved media count and indexing status. Browse clears unrelated filters, Rename changes only the Luma label, and Refresh/Resume operates on that source. Add folder or drive is available inside the manager too.
+
+**Remove from Luma** works for connected and offline sources. Its confirmation names the source and item count and explains that catalog entries, favorites, tags and album memberships are removed; originals are untouched. It optionally clears that source's current preview versions. Older preview versions can be removed with unused-preview cleanup. Album counts and source/folder filters update immediately. Re-adding a removed source scans it anew and does not restore removed organization; cancel removal if you wish to keep it.
+
+The visible **Refresh** menu offers **Refresh this source**, **Refresh all connected sources**, and **Update drive status only**. Refresh discovers filesystem changes and resumes pending indexing checkpoints. Offline sources remain saved. Status-only checks never scan; ordinary reconnect remains fast. Refresh is not cache clearing and does not reset organization.
+
+## Storage and preview maintenance
+
+Open **Storage & previews** from the sidebar or Settings. Choose one source or all sources. Coverage applies to the chosen scope; cache usage/limit describes the whole PC-local cache.
+
+- **Repair missing previews** generates missing current previews without discarding saved ones. Repeating it resumes through cache hits; it does not certify arbitrary image-byte corruption.
+- **Rebuild previews** attempts regeneration for each catalog item in the chosen scope. A replacement is generated and validated before atomically replacing the old preview. Offline, changed, unsupported, failed or capacity-limited items keep their existing previews. No other source's previews are evicted. The completion message reports updated versus checked items.
+- **Clear selected previews** explicitly confirms the count and space. Clearing one source affects its current versions; all-source clearing covers the cache. This intentionally removes offline previews, but never catalog organization or originals.
+- **Clean unused previews** estimates reclaimable space across the entire library, then confirms removal of keys no longer referenced by current catalog media. Current offline sources are retained. Old versions and removed-source previews are eligible. Cleanup does not require the HDD.
+
+Maintenance temporarily pauses preview loading, waits for pending cache work and refreshes visible images afterward. Rebuild/repair supports cancellation; completed writes persist. Cache-budget settings still apply on the next app launch. Preview pinning and original-file backup are not provided by these actions.
+
+## Activity
+
+The footer's **Activity** button remains available while work runs. It shows live progress, a pause/cancel action, saved indexing checkpoints with source paths, skipped-folder reports and the last 20 notifications from the current session. Resume paused indexing is offered when no conflicting operation is active. Preview work can be retried from Storage & previews. Checkpoints and indexing warnings survive restart; the recent notification list is session-only.

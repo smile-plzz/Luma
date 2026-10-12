@@ -8,6 +8,22 @@ public sealed record OfflineCoverage(long Cached, long Total, long CacheBytes, l
 
 public sealed partial class MediaCache
 {
+    public async Task<Dictionary<string,long>> SourceCountsAsync(CancellationToken ct=default)
+    {
+        await using var db=new SqliteConnection(connectionString); await db.OpenAsync(ct);
+        await using var cmd=db.CreateCommand(); cmd.CommandText="SELECT source_id,COUNT(*) FROM media GROUP BY source_id";
+        var result=new Dictionary<string,long>(); await using var r=await cmd.ExecuteReaderAsync(ct);
+        while(await r.ReadAsync(ct)) result[r.GetString(0)]=r.GetInt64(1);
+        return result;
+    }
+
+    public async Task<HashSet<string>> PreviewKeysAsync(string? sourceId=null,CancellationToken ct=default)
+    {
+        var keys=new HashSet<string>(StringComparer.Ordinal);
+        await foreach(var media in EnumerateCachedAsync(sourceId,ct)) keys.Add(ThumbnailCache.Key(media));
+        return keys;
+    }
+
     // Derive folders from the catalog, including Phase 1 databases. Never enumerate the drive.
     public async Task<IReadOnlyList<CachedFolder>> FoldersAsync(string sourceId, string parent = "", CancellationToken ct = default)
     {
@@ -59,6 +75,19 @@ public sealed class OfflinePreparation(MediaCache catalog, ThumbnailCache cache,
         return new(cached, total, snapshot.Bytes, snapshot.LimitBytes);
     }
 
+    public async Task<PreviewRebuild> RebuildAsync(string? sourceId=null,IProgress<long>? progress=null,CancellationToken ct=default)
+    {
+        long visited=0,updated=0;
+        await foreach(var media in catalog.EnumerateCachedAsync(sourceId,ct))
+        {
+            ct.ThrowIfCancellationRequested();
+            // Generate before replacing. Offline, failed or oversized decodes retain the old entry.
+            if(await thumbnails.GetAsync(media,ct:ct,allowEviction:false,forceRefresh:true) is not null) updated++;
+            progress?.Report(++visited);
+        }
+        return new(visited,updated);
+    }
+
     public async Task<OfflineCoverage> PrepareAsync(string? sourceId = null,
         IProgress<long>? progress = null, CancellationToken ct = default)
     {
@@ -73,3 +102,5 @@ public sealed class OfflinePreparation(MediaCache catalog, ThumbnailCache cache,
         return await InspectAsync(sourceId, ct);
     }
 }
+
+public sealed record PreviewRebuild(long Checked,long Updated);

@@ -16,15 +16,15 @@ public sealed class ThumbnailService(ThumbnailCache cache, ISourceResolver sourc
     // Bound native decoder work and coalesce requests by rechecking after entry.
     private readonly SemaphoreSlim generationGate = new(1, 1);
 
-    public async Task<byte[]?> GetAsync(CachedMedia media, int pixels = 256, CancellationToken ct = default, bool allowEviction = true)
+    public async Task<byte[]?> GetAsync(CachedMedia media, int pixels = 256, CancellationToken ct = default, bool allowEviction = true, bool forceRefresh = false)
     {
         var key = ThumbnailCache.Key(media, pixels);
-        var cached = await cache.ReadAsync(key, ct);
+        var cached = forceRefresh ? null : await cache.ReadAsync(key, ct);
         if (cached is not null) return cached; // Offline browsing never probes the removable drive on a hit.
         await generationGate.WaitAsync(ct);
         try
         {
-            cached = await cache.ReadAsync(key, ct);
+            cached = forceRefresh ? null : await cache.ReadAsync(key, ct);
             if (cached is not null) return cached;
             var root = sources.ResolveRoot(media.SourceId);
             if (root is null) return null;

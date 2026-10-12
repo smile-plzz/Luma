@@ -127,6 +127,33 @@ public sealed class ThumbnailCache : IDisposable
         finally { gate.Release(); }
     }
 
+    public async Task<CacheRemoval> InspectRemovalAsync(IReadOnlySet<string> keys, CancellationToken ct = default)
+    {
+        await gate.WaitAsync(ct);
+        try
+        {
+            var selected=entries.Where(e=>keys.Contains(Path.GetFileNameWithoutExtension(e.Key))).ToArray();
+            return new(selected.Length,selected.Sum(e=>e.Value.Length));
+        }
+        finally { gate.Release(); }
+    }
+
+    public async Task<CacheRemoval> RemoveAsync(IReadOnlySet<string> keys, CancellationToken ct = default)
+    {
+        await gate.WaitAsync(ct);
+        try
+        {
+            long count=0,bytes=0;
+            foreach(var entry in entries.Values.Where(e=>keys.Contains(Path.GetFileNameWithoutExtension(e.Path))).ToArray())
+            {
+                ct.ThrowIfCancellationRequested();
+                File.Delete(entry.Path); Forget(entry.Path); count++; bytes+=entry.Length;
+            }
+            return new(count,bytes);
+        }
+        finally { gate.Release(); }
+    }
+
     public async Task ClearAsync(CancellationToken ct = default)
     {
         await gate.WaitAsync(ct);
@@ -178,3 +205,5 @@ public sealed class ThumbnailCache : IDisposable
 }
 
 public sealed record ThumbnailCacheSnapshot(IReadOnlySet<string> Keys, long Bytes, long LimitBytes);
+
+public sealed record CacheRemoval(long Count,long Bytes);
