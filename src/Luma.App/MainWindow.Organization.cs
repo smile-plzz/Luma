@@ -56,18 +56,17 @@ public sealed partial class MainWindow
         var name=await Prompt("Name this source","A friendly label. The folder itself will not be renamed.",""); if(name is null)return;
         await catalog.LabelSourceAsync(id,name); await LoadSources();
     },true);
-    private async void RefreshMetadata(object sender,RoutedEventArgs e) => await Guard(async () =>
+    private async Task RefreshMetadataFor(string? source)
     {
         scanning=true; scanCancellation=new(); Busy.IsActive=true; CancelButton.Visibility=Visibility.Visible;
         try
         {
-            var source=SelectedSource;
             var progress=new Progress<int>(n=>Status.Text=$"Metadata · {n:N0} updated");
             var count=await Task.Run(()=>catalog.EnrichAsync(new WindowsMetadataReader(),source,scanCancellation.Token,progress));
             Notify($"Metadata refreshed for {count:N0} changed files. Unsupported dates use modification time.");
         }
         finally { scanning=false; Busy.IsActive=false; CancelButton.Visibility=Visibility.Collapsed; if(ready)await Refresh(); }
-    },true);
+    }
     private void StartDrag(object sender,DragItemsStartingEventArgs e)
     {
         var media=e.Items.Cast<MediaCard>().Select(c=>c.Item.Media).ToArray();

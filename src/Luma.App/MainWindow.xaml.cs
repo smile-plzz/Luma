@@ -66,7 +66,7 @@ public sealed partial class MainWindow : Window
             cache = await Task.Run(() => new ThumbnailCache(Path.Combine(AppSettings.LocalRoot, "thumbnails"), Math.Clamp(settings.CacheGiB, 1, 32) * 1024L * 1024 * 1024));
             thumbnails = new(cache, resolver, new WindowsThumbnailGenerator());
             if (AppSettings.IsSmokeTest) await SeedSmokeFixtures();
-            await LoadSources(); await LoadAlbums(); ApplyViewSettings(); ready = true; availabilityTimer.Start(); await Refresh();
+            await LoadSources(); await LoadAlbums(); ApplyViewSettings(); settings.Save(); ready = true; availabilityTimer.Start(); await Refresh();
         });
     }
     private async Task SeedSmokeFixtures()
@@ -114,10 +114,6 @@ public sealed partial class MainWindow : Window
         checkingSources = true;
         try
         {
-            var checkpoints = await catalog.IndexingCheckpointsAsync();
-            ResumeIndexingButton.Visibility = IndexingHint.Visibility = checkpoints.Count > 0 ? Visibility.Visible : Visibility.Collapsed;
-            ResumeIndexingButton.IsEnabled = !scanning;
-            IndexingHint.Text = $"{checkpoints.Count} paused source(s) · {checkpoints.Sum(c => c.CompletedFolders):N0} folders saved. Reconnect and resume.";
             var selected = SelectedSource;
             var all = await Task.Run(() => catalog.SourcesAsync());
             var labels = await catalog.SourceLabelsAsync();
@@ -181,7 +177,7 @@ public sealed partial class MainWindow : Window
     private async Task Scan(IEnumerable<SourceInfo> sources, bool reuseExisting = false)
     {
         scanning = true; scanCancellation = new(); Busy.IsActive = true; CancelButton.Visibility = Visibility.Visible;
-        AddSourceButton.IsEnabled = RescanButton.IsEnabled = false;
+        AddSourceButton.IsEnabled = false;
         bool published = false;
         try
         {
@@ -225,7 +221,7 @@ public sealed partial class MainWindow : Window
         finally
         {
             scanning = false; Busy.IsActive = false; CancelButton.Visibility = Visibility.Collapsed;
-            AddSourceButton.IsEnabled = RescanButton.IsEnabled = true;
+            AddSourceButton.IsEnabled = true;
             await LoadSources(); if(!published && ready) await Refresh();
         }
     }

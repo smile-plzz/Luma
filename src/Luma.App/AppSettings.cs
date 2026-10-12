@@ -10,7 +10,8 @@ public sealed class AppSettings
     public bool ShowDetails { get; set; }
     public bool FitImages { get; set; }
     public bool Compact { get; set; }
-    public bool CommonOnly { get; set; } = true;
+    public bool CommonOnly { get; set; }
+    public int FilterDefaultsVersion { get; set; } = 1;
     public bool IncludeDescendants { get; set; } = true;
     public int CacheGiB { get; set; } = 2;
     public string Theme { get; set; } = "Default";
@@ -27,8 +28,19 @@ public sealed class AppSettings
         : Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData), "Luma");
     public static AppSettings Load()
     {
-        try { return JsonSerializer.Deserialize<AppSettings>(File.ReadAllText(Path.Combine(LocalRoot,"settings.json"))) ?? new(); }
+        try { return FromJson(File.ReadAllText(Path.Combine(LocalRoot,"settings.json"))); }
         catch (Exception e) when (e is IOException or JsonException or UnauthorizedAccessException) { return new(); }
+    }
+    public static AppSettings FromJson(string json)
+    {
+        var settings=JsonSerializer.Deserialize<AppSettings>(json) ?? new();
+        using var document=JsonDocument.Parse(json);
+        // Older versions enabled this filter by default. Reveal supported files once
+        // on upgrade; subsequent explicit choices remain persistent.
+        if(document.RootElement.ValueKind==JsonValueKind.Object && !document.RootElement.TryGetProperty(nameof(FilterDefaultsVersion),out _))
+            settings.CommonOnly=false;
+        settings.FilterDefaultsVersion=1;
+        return settings;
     }
     public void Save()
     {

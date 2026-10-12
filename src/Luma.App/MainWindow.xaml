@@ -15,10 +15,11 @@
   </Grid.KeyboardAccelerators>
   <Grid.ColumnDefinitions><ColumnDefinition Width="224"/><ColumnDefinition Width="*"/></Grid.ColumnDefinitions>
   <Border Background="{ThemeResource LumaSidebar}">
+   <Grid><Grid.RowDefinitions><RowDefinition Height="*"/><RowDefinition Height="Auto"/></Grid.RowDefinitions>
    <ScrollViewer VerticalScrollBarVisibility="Auto" HorizontalScrollBarVisibility="Disabled">
     <StackPanel Padding="18,28,18,20" Spacing="10">
      <StackPanel Margin="12,0,0,20" Spacing="3"><TextBlock Text="Luma" FontSize="26" FontWeight="SemiBold" CharacterSpacing="-30"/><TextBlock Text="A place for your moments" FontSize="11" Opacity="0.65"/></StackPanel>
-     <ListView x:Name="Navigation" SelectionChanged="NavigationChanged" SelectedIndex="0"><x:String>Library</x:String><x:String>Timeline</x:String><x:String>Photos</x:String><x:String>Videos</x:String><x:String>Favorites</x:String><x:String>On this day</x:String></ListView>
+     <ListView x:Name="Navigation" SelectionChanged="NavigationChanged" SelectedIndex="0"><x:String>Library</x:String><x:String>Photos</x:String><x:String>Videos</x:String><x:String>Favorites</x:String><x:String>On this day</x:String></ListView>
      <TextBlock Text="Albums" FontSize="12" FontWeight="SemiBold" Opacity="0.65" Margin="12,22,0,0"/>
      <ComboBox x:Name="AlbumsBox" PlaceholderText="Choose an album" HorizontalAlignment="Stretch" SelectionChanged="AlbumChanged" AutomationProperties.Name="Album filter" AllowDrop="True" DragOver="AlbumDragOver" Drop="AlbumDrop"/>
      <StackPanel Orientation="Horizontal" Spacing="6"><Button Content="+ Album" Click="NewAlbum"/><Button Content="⋯" AutomationProperties.Name="Album actions"><Button.Flyout><MenuFlyout><MenuFlyoutItem Text="Rename album" Click="RenameAlbum"/><MenuFlyoutItem Text="Delete album" Click="DeleteAlbum"/><MenuFlyoutItem Text="Show all albums' media" Click="LeaveAlbum"/></MenuFlyout></Button.Flyout></Button></StackPanel>
@@ -34,27 +35,11 @@
      </ListView>
      </StackPanel>
      <Button x:Name="AddSourceButton" Content="+ Add folder or drive" HorizontalAlignment="Stretch" HorizontalContentAlignment="Left" Margin="0,12,0,0" Click="AddSource"/>
-     <Expander x:Name="SourceTools" Header="Drive tools" HorizontalAlignment="Stretch" Background="Transparent" BorderThickness="0">
-      <StackPanel Spacing="8">
-       <Button Content="Refresh drive status" Click="RefreshDriveStatus"/>
-       <Button x:Name="RescanButton" Content="Rescan sources" Click="Rescan"/>
-       <Button x:Name="ResumeIndexingButton" Content="Resume indexing" Click="ResumeIndexing" Visibility="Collapsed"/>
-       <TextBlock x:Name="IndexingHint" FontSize="11" TextWrapping="Wrap" Visibility="Collapsed"/>
-       <Button Content="Indexing report" Click="ShowIndexingReport"/>
-       <Button Content="Restart selected indexing" Click="RestartIndexing"/>
-       <Button Content="Refresh metadata" Click="RefreshMetadata"/>
-       <Button Content="Rename source label" Click="RenameSourceLabel"/>
-       <Button Content="Remove selected source" Click="RemoveSource"/>
-       <Button x:Name="PrepareButton" Content="Prepare offline previews" Click="PrepareOffline"/>
-       <Button Content="Check offline coverage" Click="CheckCoverage"/>
-       <TextBlock x:Name="CoverageText" Text="Check coverage before disconnecting." FontSize="11" TextWrapping="Wrap" MaxWidth="150"/>
-       <Button Content="Clear thumbnail cache" Click="ClearCache"/>
-      </StackPanel>
-     </Expander>
-     <Button Content="Storage &amp; previews" Click="StorageSettings" HorizontalAlignment="Stretch" HorizontalContentAlignment="Left"/>
-     <Button Content="Settings" HorizontalAlignment="Stretch" HorizontalContentAlignment="Left" Click="Settings"/>
     </StackPanel>
    </ScrollViewer>
+   <StackPanel Grid.Row="1" Padding="18,8,18,12" Spacing="2">     <Button Content="Storage &amp; previews" Click="StorageSettings" HorizontalAlignment="Stretch" HorizontalContentAlignment="Left"/>
+     <Button Content="Settings" HorizontalAlignment="Stretch" HorizontalContentAlignment="Left" Click="Settings"/>
+   </StackPanel></Grid>
   </Border>
   <Grid Grid.Column="1" Padding="28,28,24,16" RowSpacing="16">
    <Grid.RowDefinitions><RowDefinition Height="Auto"/><RowDefinition Height="Auto"/><RowDefinition Height="Auto"/><RowDefinition Height="*"/><RowDefinition Height="Auto"/><RowDefinition Height="Auto"/></Grid.RowDefinitions>
@@ -67,17 +52,17 @@
    <StackPanel Orientation="Horizontal" Spacing="4">
     <ComboBox x:Name="SortBox" SelectedIndex="4" SelectionChanged="FilterChanged" AutomationProperties.Name="Sort order" MinWidth="145"><x:String>Date modified</x:String><x:String>Oldest modified</x:String><x:String>Name</x:String><x:String>File size</x:String><x:String>Date taken</x:String><x:String>File type</x:String></ComboBox>
     <ToggleButton x:Name="DescendingButton" Content="↓" IsChecked="True" Checked="DirectionChanged" Unchecked="DirectionChanged" AutomationProperties.Name="Descending order"/>
-    <Button Content="View" AutomationProperties.Name="Gallery view options"><Button.Flyout><Flyout><StackPanel Width="260" Spacing="10">
+    <Button Content="View" AutomationProperties.Name="Gallery view options"><Button.Flyout><Flyout><StackPanel Width="260" Spacing="10"><Button Content="Show timeline" Click="ShowTimeline"/>
      <ComboBox x:Name="GroupBox" AutomationProperties.AutomationId="GroupBox" Header="Group by" SelectedIndex="2" SelectionChanged="GroupChanged"><x:String>None</x:String><x:String>Year</x:String><x:String>Month</x:String><x:String>Day</x:String></ComboBox>
      <Slider x:Name="ThumbnailSlider" AutomationProperties.AutomationId="ThumbnailSlider" Header="Thumbnail size" Minimum="120" Maximum="320" Value="190" StepFrequency="10" ValueChanged="ThumbnailSizeChanged"/>
      <CheckBox x:Name="NamesToggle" AutomationProperties.AutomationId="NamesToggle" Content="Show filenames" Checked="AppearanceChanged" Unchecked="AppearanceChanged"/><CheckBox x:Name="DetailsToggle" Content="Show dates and size" Checked="AppearanceChanged" Unchecked="AppearanceChanged"/><CheckBox x:Name="FitToggle" Content="Fit entire image" Checked="AppearanceChanged" Unchecked="AppearanceChanged"/><CheckBox x:Name="CompactToggle" Content="Compact spacing" Checked="AppearanceChanged" Unchecked="AppearanceChanged"/>
-     <CheckBox x:Name="CommonToggle" Content="Everyday formats only" IsChecked="True" Checked="ContentFilterChanged" Unchecked="ContentFilterChanged"/><CheckBox x:Name="RecursiveToggle" Content="Include nested folders" IsChecked="True" Checked="ContentFilterChanged" Unchecked="ContentFilterChanged"/>
+     <CheckBox x:Name="CommonToggle" Content="Everyday formats only" IsChecked="False" Checked="ContentFilterChanged" Unchecked="ContentFilterChanged"/><CheckBox x:Name="RecursiveToggle" Content="Include nested folders" IsChecked="True" Checked="ContentFilterChanged" Unchecked="ContentFilterChanged"/>
     </StackPanel></Flyout></Button.Flyout></Button>
     <ComboBox x:Name="DateJump" PlaceholderText="Jump to month" SelectionChanged="JumpDate" Width="145" AutomationProperties.Name="Jump to month"/>
-    <Button Content="Reset" Click="ResetFilters"/><ToggleButton x:Name="InspectorToggle" AutomationProperties.AutomationId="InspectorToggle" Content="Details" ToolTipService.ToolTip="Show file details" Checked="InspectorChanged" Unchecked="InspectorChanged"/>
+    <Button Content="Reset" Click="ResetFilters" ToolTipService.ToolTip="Clear all filters and show all supported files"/><ToggleButton x:Name="InspectorToggle" AutomationProperties.AutomationId="InspectorToggle" Content="Details" ToolTipService.ToolTip="Show file details" Checked="InspectorChanged" Unchecked="InspectorChanged"/>
    </StackPanel>
    </Border>
-   <StackPanel Grid.Row="2" Spacing="8"><CalendarDatePicker x:Name="MemoryDate" Visibility="Collapsed" DateChanged="MemoryDateChanged" AutomationProperties.Name="Memory day" PlaceholderText="Choose a day"/><InfoBar x:Name="Notice" IsOpen="False" IsClosable="True"/></StackPanel>
+   <StackPanel Grid.Row="2" Spacing="8"><ScrollViewer HorizontalScrollBarVisibility="Auto" VerticalScrollBarVisibility="Disabled"><StackPanel x:Name="ActiveFilters" Orientation="Horizontal" Spacing="4"/></ScrollViewer><CalendarDatePicker x:Name="MemoryDate" Visibility="Collapsed" DateChanged="MemoryDateChanged" AutomationProperties.Name="Memory day" PlaceholderText="Choose a day"/><InfoBar x:Name="Notice" IsOpen="False" IsClosable="True"/></StackPanel>
    <Grid Grid.Row="3">
     <Grid.ColumnDefinitions><ColumnDefinition Width="*"/><ColumnDefinition Width="Auto"/></Grid.ColumnDefinitions>
     <GridView x:Name="MediaGrid" AutomationProperties.AutomationId="MediaGrid" SelectionMode="Extended" IsItemClickEnabled="False" DoubleTapped="GridDoubleTapped" SelectionChanged="SelectionChanged" RightTapped="GridRightTapped" ScrollViewer.HorizontalScrollBarVisibility="Disabled" ContainerContentChanging="TileChanging" Loaded="GalleryLoaded" CanDragItems="True" DragItemsStarting="StartDrag" PointerWheelChanged="GalleryWheel">

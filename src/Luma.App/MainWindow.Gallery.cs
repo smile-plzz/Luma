@@ -19,7 +19,8 @@ public sealed partial class MainWindow
     private bool loading, exhausted;
     private int peakDecoded;
     private long? beforeTicks;
-    private bool IsMemories => Navigation.SelectedIndex == 5;
+    private long libraryTotal;
+    private bool IsMemories => Navigation.SelectedItem?.ToString() == "On this day";
     private DateOnly MemoryDay => DateOnly.FromDateTime((MemoryDate.Date ?? DateTimeOffset.Now).LocalDateTime);
     private bool Grouped => settings.GroupIndex > 0 && settings.SortIndex is 0 or 1 or 4;
     private string? SelectedAlbum => (AlbumsBox.SelectedItem as Album)?.Id;
@@ -35,8 +36,8 @@ public sealed partial class MainWindow
         FitToggle.IsChecked = settings.FitImages; CompactToggle.IsChecked = settings.Compact;
         CommonToggle.IsChecked = settings.CommonOnly; RecursiveToggle.IsChecked = settings.IncludeDescendants;
     }
-    private LibraryQuery CurrentQuery() => new(SelectedSource,SearchBox.Text.Trim(),Navigation.SelectedIndex == 2 ? "photo" : Navigation.SelectedIndex == 3 ? "video" : null,
-        Navigation.SelectedIndex == 4,(MediaSort)settings.SortIndex,0,120,FolderFilter.Text.Trim(),settings.Descending,SelectedAlbum,settings.IncludeDescendants,settings.CommonOnly,beforeTicks,MemoriesOn:IsMemories ? MemoryDay : null);
+    private LibraryQuery CurrentQuery() => new(SelectedSource,SearchBox.Text.Trim(),Navigation.SelectedItem?.ToString() == "Photos" ? "photo" : Navigation.SelectedItem?.ToString() == "Videos" ? "video" : null,
+        Navigation.SelectedItem?.ToString() == "Favorites",(MediaSort)settings.SortIndex,0,120,FolderFilter.Text.Trim(),settings.Descending,SelectedAlbum,settings.IncludeDescendants,settings.CommonOnly,beforeTicks,MemoriesOn:IsMemories ? MemoryDay : null);
 
     private async Task Refresh()
     {
@@ -48,6 +49,8 @@ public sealed partial class MainWindow
         if (Grouped) MediaGrid.ItemsSource = new CollectionViewSource { IsSourceGrouped=true,Source=groups }.View;
         else MediaGrid.ItemsSource = cards;
         galleryScroll?.ChangeView(null,0,null,true);
+        libraryTotal=(await Task.Run(()=>catalog.SourceCountsAsync(token),token)).Values.Sum();
+        token.ThrowIfCancellationRequested(); BuildFilterChips();
         await LoadMore(); token.ThrowIfCancellationRequested();
         await LoadFolders(token);
         var months = await Task.Run(() => catalog.MonthsAsync(activeQuery,token),token); token.ThrowIfCancellationRequested();
@@ -80,7 +83,7 @@ public sealed partial class MainWindow
                 EmptyTitle.Text = "No memories for this day yet";
                 EmptyText.Text = "Choose another day or add more photos. Memories use recorded capture dates from earlier years; files without a capture date remain in your library. Active filters also apply.";
             }
-            LibrarySummary.Text = IsMemories ? $"{MemoryDay:MMMM d} · {total:N0} memories from earlier years" : $"{total:N0} items";
+            LibrarySummary.Text = IsMemories ? $"{MemoryDay:MMMM d} · {total:N0} memories · {libraryTotal:N0} library items" : ActiveFilters.Children.Count>0 ? $"{total:N0} of {libraryTotal:N0} items · Filtered" : $"{total:N0} items";
             if (!scanning && !preparing) Status.Text = total == 0 ? "" : exhausted ? "You’re all caught up" : "Scroll to explore";
         }
         catch(OperationCanceledException) { }
@@ -135,13 +138,45 @@ public sealed partial class MainWindow
         catch(Exception) { /* A missing codec or corrupt preview keeps the accessible placeholder. */ }
         finally { card.Loading=false; }
     }
+    private void BuildFilterChips()
+    {
+        ActiveFilters.Children.Clear();
+        void Add(string label,Action clear)
+        {
+            var button=new Button { Content=label+" ×",MaxWidth=220 };
+            Microsoft.UI.Xaml.Automation.AutomationProperties.SetName(button,"Remove filter: "+label);
+            button.Click+=async (_,_)=>
+            {
+                ready=false;
+                try { clear(); beforeTicks=null; settings.Save(); }
+                finally { ready=true; }
+                await Guard(Refresh);
+            };
+            ActiveFilters.Children.Add(button);
+        }
+        if(SelectedSource is not null) Add("Source: "+((SourceChoice)Sources.SelectedItem).Label,()=> { Sources.SelectedIndex=0; FolderFilter.Text=""; });
+        if(FolderFilter.Text.Length>0)Add("Folder: "+FolderFilter.Text,()=>FolderFilter.Text="");
+        if(SearchBox.Text.Trim().Length>0)Add("Search: "+SearchBox.Text.Trim(),()=>SearchBox.Text="");
+        if(SelectedAlbum is not null)Add("Album: "+((Album)AlbumsBox.SelectedItem).Name,()=> { AlbumsBox.SelectedItem=null; Heading.Text=Navigation.SelectedItem?.ToString() ?? "Library"; });
+        if(settings.CommonOnly)Add("Everyday formats only",()=> { settings.CommonOnly=false; CommonToggle.IsChecked=false; });
+        if(!settings.IncludeDescendants)Add("This folder only",()=> { settings.IncludeDescendants=true; RecursiveToggle.IsChecked=true; });
+        if(Navigation.SelectedIndex>0)Add(Navigation.SelectedItem?.ToString() ?? "Category",()=> { Navigation.SelectedIndex=0; Heading.Text="Library"; MemoryDate.Visibility=Visibility.Collapsed; });
+        if(beforeTicks is not null)Add("Date limit",()=>beforeTicks=null);
+    }
+    private async void ShowTimeline(object sender,RoutedEventArgs e)
+    {
+        if(!ready)return;
+        ready=false; Navigation.SelectedIndex=0; Heading.Text="Library"; MemoryDate.Visibility=Visibility.Collapsed;
+        settings.SortIndex=4; settings.GroupIndex=2; settings.Descending=true; ApplyViewSettings(); settings.Save(); ready=true;
+        beforeTicks=null; await Guard(Refresh);
+    }
     private async void NavigationChanged(object sender,SelectionChangedEventArgs e)
     {
         if(!ready) return; Heading.Text=Navigation.SelectedItem?.ToString() ?? "Library";
         ready=false;
         MemoryDate.Visibility = IsMemories ? Visibility.Visible : Visibility.Collapsed;
         if (IsMemories) { MemoryDate.MaxDate=DateTimeOffset.Now; MemoryDate.Date=DateTimeOffset.Now; settings.GroupIndex=1; GroupBox.SelectedIndex=1; settings.Descending=true; DescendingButton.IsChecked=true; }
-        if(Navigation.SelectedIndex is 1 or 5)
+        if(IsMemories)
         {
             settings.SortIndex=4; SortBox.SelectedIndex=4;
             if(settings.GroupIndex==0) { settings.GroupIndex=2; GroupBox.SelectedIndex=2; }
@@ -196,7 +231,8 @@ public sealed partial class MainWindow
     }
     private async void ResetFilters(object sender,RoutedEventArgs e)
     {
-        ready=false; SearchBox.Text=""; FolderFilter.Text=""; AlbumsBox.SelectedItem=null; Sources.SelectedIndex=0; Navigation.SelectedIndex=0; ready=true;
+        ready=false; SearchBox.Text=""; FolderFilter.Text=""; AlbumsBox.SelectedItem=null; Sources.SelectedIndex=0; Navigation.SelectedIndex=0;
+        settings.CommonOnly=false; settings.IncludeDescendants=true; CommonToggle.IsChecked=false; RecursiveToggle.IsChecked=true; settings.Save(); ready=true;
         Heading.Text="Library"; MemoryDate.Visibility=Visibility.Collapsed; beforeTicks=null; await Guard(Refresh);
     }
     private void InspectorChanged(object sender,RoutedEventArgs e) { if(ready) Inspector.Visibility=InspectorToggle.IsChecked==true ? Visibility.Visible : Visibility.Collapsed; }
