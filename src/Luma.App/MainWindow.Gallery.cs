@@ -267,7 +267,7 @@ public sealed partial class MainWindow
     {
         if(!ready)return;
         MediaGrid.SelectionMode=SelectMode.IsChecked==true ? ListViewSelectionMode.Multiple : ListViewSelectionMode.Extended;
-        SelectionHint.Visibility=SelectMode.IsChecked==true ? Visibility.Visible : Visibility.Collapsed;
+        SelectionHint.Visibility=SelectMode.IsChecked==true && MediaGrid.SelectedItems.Count==0 ? Visibility.Visible : Visibility.Collapsed;
     }
     private void SelectLoaded(object sender,RoutedEventArgs e) => MediaGrid.SelectAll();
     private void ClearSelection(object sender,RoutedEventArgs e) => MediaGrid.SelectedItems.Clear();

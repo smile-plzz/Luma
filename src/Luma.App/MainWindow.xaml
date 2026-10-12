@@ -65,11 +65,11 @@
    <StackPanel Grid.Row="2" Spacing="8">
     <StackPanel x:Name="MonthBrowser" Orientation="Horizontal" Spacing="4" Visibility="Collapsed">
      <Button x:Name="AllMonthsButton" Content="All months" Click="ClearMonth"/>
-     <Button x:Name="NewerMonthButton" Content="‹" Click="NewerMonth" AutomationProperties.Name="Newer month"/>
+     <Button x:Name="NewerMonthButton" Content="Newer" Click="NewerMonth" AutomationProperties.Name="Newer month"/>
      <ComboBox x:Name="DateJump" PlaceholderText="Choose a month" SelectionChanged="JumpDate" Width="240" AutomationProperties.Name="Browse month" ToolTipService.ToolTip="Date taken when available; otherwise date modified. Counts follow your current filters."/>
-     <Button x:Name="OlderMonthButton" Content="›" Click="OlderMonth" AutomationProperties.Name="Older month"/>
+     <Button x:Name="OlderMonthButton" Content="Older" Click="OlderMonth" AutomationProperties.Name="Older month"/>
     </StackPanel>
-    <TextBlock x:Name="SelectionHint" Text="Click to select files · Copy, copy to a folder, or add to an album" Visibility="Collapsed" FontSize="12" Opacity="0.65"/>
+    <TextBlock x:Name="SelectionHint" Text="Click to select files · Ctrl+A selects loaded files" Visibility="Collapsed" FontSize="12" Opacity="0.65"/>
 <ScrollViewer x:Name="FilterBar" Visibility="Collapsed" HorizontalScrollBarVisibility="Auto" VerticalScrollBarVisibility="Disabled"><StackPanel x:Name="ActiveFilters" Orientation="Horizontal" Spacing="4"/></ScrollViewer><CalendarDatePicker x:Name="MemoryDate" Visibility="Collapsed" DateChanged="MemoryDateChanged" AutomationProperties.Name="Memory day" PlaceholderText="Choose a day"/><InfoBar x:Name="Notice" IsOpen="False" IsClosable="True"/></StackPanel>
    <Grid Grid.Row="3">
     <Grid.ColumnDefinitions><ColumnDefinition Width="*"/><ColumnDefinition Width="Auto"/></Grid.ColumnDefinitions>

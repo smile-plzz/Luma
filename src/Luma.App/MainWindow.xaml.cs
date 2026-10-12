@@ -220,6 +220,7 @@ public sealed partial class MainWindow : Window
         var card = Selected; var selected = MediaGrid.SelectedItems.Cast<MediaCard>().ToArray();
         SelectionBar.Visibility = selected.Length > 0 ? Visibility.Visible : Visibility.Collapsed;
         SelectionCount.Text = $"{selected.Length:N0} selected";
+        SelectionHint.Visibility=selected.Length==0 && SelectMode.IsChecked==true ? Visibility.Visible : Visibility.Collapsed;
         ToolTipService.SetToolTip(SelectionCount,$"{selected.Sum(c=>(double)c.Item.Media.Length)/1024/1024:N1} MB · {selected.Count(c=>!c.Item.Media.IsAvailable):N0} offline. Reconnect offline sources to copy originals.");
         RefreshSelectionDetails();
         TagsBox.Text = card?.Item.Tags ?? ""; FavoriteButton.Content = selected.Length > 0 && selected.All(c => c.Item.Favorite) ? "★ Unfavorite" : "☆ Favorite";
@@ -280,6 +281,7 @@ public sealed partial class MainWindow : Window
         pendingCutIds.Clear();
         if(cut) foreach(var card in selected) pendingCutIds.Add(card.Item.Id);
         foreach(var card in cards) card.IsCut=pendingCutIds.Contains(card.Item.Id);
+        if(!scanning && !preparing)Status.Text=$"{files.Count:N0} files ready to {(cut ? "move" : "copy")}";
         Notify($"{files.Count} file(s) ready to {(cut ? "move" : "copy")}. Paste into a destination folder.");
     }
     private async void CopySelected(object sender, RoutedEventArgs e) => await Guard(() => Copy(false), true);
