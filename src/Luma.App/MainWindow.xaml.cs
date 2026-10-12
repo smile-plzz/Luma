@@ -107,7 +107,7 @@ public sealed partial class MainWindow : Window
         finally { if (exclusive) operation = false; }
     }
     private void Notify(string text, bool error = false)
-    { Notice.Message = text; Notice.Severity = error ? InfoBarSeverity.Error : InfoBarSeverity.Informational; Notice.IsOpen = true; }
+    { recentActivity.Enqueue($"{DateTime.Now:t} · {text}"); while(recentActivity.Count>20)recentActivity.Dequeue(); Notice.Message = text; Notice.Severity = error ? InfoBarSeverity.Error : InfoBarSeverity.Informational; Notice.IsOpen = true; }
     private async Task LoadSources()
     {
         if (checkingSources) return;
@@ -177,11 +177,7 @@ public sealed partial class MainWindow : Window
         await catalog.DiscardIndexingAsync(id); await RescanCurrent();
     },true);
     private async void Rescan(object sender, RoutedEventArgs e) => await Guard(RescanCurrent, true);
-    private async Task RescanCurrent()
-    {
-        var sources = await Task.Run(() => catalog.SourcesAsync());
-        await Scan(sources.Where(s => (SelectedSource is null || s.Id == SelectedSource) && s.IsOnline));
-    }
+    private Task RescanCurrent() => RefreshSources(SelectedSource);
     private async Task Scan(IEnumerable<SourceInfo> sources, bool reuseExisting = false)
     {
         scanning = true; scanCancellation = new(); Busy.IsActive = true; CancelButton.Visibility = Visibility.Visible;
@@ -236,10 +232,9 @@ public sealed partial class MainWindow : Window
     private void CancelScan(object sender, RoutedEventArgs e) { scanCancellation?.Cancel(); preparationCancellation?.Cancel(); }
     private async void RemoveSource(object sender, RoutedEventArgs e) => await Guard(async () =>
     {
-        if (scanning) return; var id = SelectedSource; if (id is null) { Notify("Select a single source first."); return; }
-        if (!await Confirm("Remove source?", "This removes its catalog entries and tags. Original files and cached thumbnail files are untouched.", "Remove source")) return;
-        await Task.Run(() => catalog.RemoveSourceAsync(id)); await LoadSources(); await Refresh();
-    }, true);
+        if(SelectedSource is not string id) { Notify("Choose a source, or open Manage sources to remove one."); return; }
+        await RemoveManagedSource(id);
+    },true);
     private void SelectionChanged(object sender, SelectionChangedEventArgs e)
     {
         var card = Selected; var selected = MediaGrid.SelectedItems.Cast<MediaCard>().ToArray();
@@ -368,7 +363,11 @@ public sealed partial class MainWindow : Window
         var panel = new StackPanel { Spacing = 18, MinWidth = 380 };
         panel.Children.Add(theme); panel.Children.Add(budget); panel.Children.Add(new TextBlock { Text = "Thumbnails and metadata are saved on this PC. Old thumbnails are removed when the cache fills, including thumbnails from offline drives.", TextWrapping = TextWrapping.Wrap, MaxWidth = 400 });
         var dialog = new ContentDialog { XamlRoot = Root.XamlRoot, Title = "Settings", Content = panel, PrimaryButtonText = "Save", CloseButtonText = "Cancel" };
-        if (await dialog.ShowAsync() != ContentDialogResult.Primary) return;
+        bool storage=false;
+        panel.Children.Add(ActionButton("Storage & previews",()=> { storage=true; dialog.Hide(); }));
+        var result=await dialog.ShowAsync();
+        if(storage) { await OpenStorage(); return; }
+        if (result != ContentDialogResult.Primary) return;
         settings.Theme = theme.SelectedItem?.ToString() ?? "Default"; settings.CacheGiB = double.IsNaN(budget.Value) ? 2 : (int)Math.Clamp(budget.Value, 1, 32);
         settings.Save(); ApplyTheme();
     }, true);

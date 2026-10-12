@@ -23,6 +23,7 @@
      <ComboBox x:Name="AlbumsBox" PlaceholderText="Choose an album" HorizontalAlignment="Stretch" SelectionChanged="AlbumChanged" AutomationProperties.Name="Album filter" AllowDrop="True" DragOver="AlbumDragOver" Drop="AlbumDrop"/>
      <StackPanel Orientation="Horizontal" Spacing="6"><Button Content="+ Album" Click="NewAlbum"/><Button Content="⋯" AutomationProperties.Name="Album actions"><Button.Flyout><MenuFlyout><MenuFlyoutItem Text="Rename album" Click="RenameAlbum"/><MenuFlyoutItem Text="Delete album" Click="DeleteAlbum"/><MenuFlyoutItem Text="Show all albums' media" Click="LeaveAlbum"/></MenuFlyout></Button.Flyout></Button></StackPanel>
      <TextBlock Text="Folders &amp; drives" FontSize="12" FontWeight="SemiBold" Opacity="0.65" Margin="12,22,0,0"/>
+     <Button Content="Manage sources" Click="ManageSources" HorizontalAlignment="Stretch" HorizontalContentAlignment="Left"/>
      <ComboBox x:Name="Sources" HorizontalAlignment="Stretch" SelectionChanged="FilterChanged" AutomationProperties.Name="Source filter"/>
      <StackPanel x:Name="FolderNavigation" Spacing="8" Visibility="Collapsed">
      <TextBox x:Name="FolderFilter" PlaceholderText="Folder within source" TextChanged="SearchChanged" AutomationProperties.Name="Folder path"/>
@@ -50,6 +51,7 @@
        <Button Content="Clear thumbnail cache" Click="ClearCache"/>
       </StackPanel>
      </Expander>
+     <Button Content="Storage &amp; previews" Click="StorageSettings" HorizontalAlignment="Stretch" HorizontalContentAlignment="Left"/>
      <Button Content="Settings" HorizontalAlignment="Stretch" HorizontalContentAlignment="Left" Click="Settings"/>
     </StackPanel>
    </ScrollViewer>
@@ -58,7 +60,8 @@
    <Grid.RowDefinitions><RowDefinition Height="Auto"/><RowDefinition Height="Auto"/><RowDefinition Height="Auto"/><RowDefinition Height="*"/><RowDefinition Height="Auto"/><RowDefinition Height="Auto"/></Grid.RowDefinitions>
    <Grid ColumnSpacing="16"><Grid.ColumnDefinitions><ColumnDefinition Width="*"/><ColumnDefinition Width="280"/></Grid.ColumnDefinitions>
     <StackPanel><TextBlock x:Name="Heading" Text="Library" FontSize="32" FontWeight="SemiBold" CharacterSpacing="-30"/><TextBlock x:Name="LibrarySummary" Text="Your moments, together." FontSize="12" Opacity="0.6" Margin="0,5,0,0" TextTrimming="CharacterEllipsis"/></StackPanel>
-    <TextBox x:Name="SearchBox" Grid.Column="1" PlaceholderText="Search photos, folders, tags" TextChanged="SearchChanged" VerticalAlignment="Center" AutomationProperties.Name="Search library"/>
+    <StackPanel Grid.Column="1" Orientation="Horizontal" Spacing="8" VerticalAlignment="Center"><TextBox x:Name="SearchBox" Width="200" PlaceholderText="Search photos, folders, tags" TextChanged="SearchChanged" VerticalAlignment="Center" AutomationProperties.Name="Search library"/>
+    <Button Content="Refresh" AutomationProperties.Name="Refresh library"><Button.Flyout><MenuFlyout><MenuFlyoutItem Text="Refresh this source" Click="RefreshSelectedSource"/><MenuFlyoutItem Text="Refresh all connected sources" Click="RefreshAllSources"/><MenuFlyoutSeparator/><MenuFlyoutItem Text="Update drive status only" Click="RefreshDriveStatus"/></MenuFlyout></Button.Flyout></Button></StackPanel>
    </Grid>
    <Border Grid.Row="1" Background="{ThemeResource LumaControl}" CornerRadius="12" Padding="4" HorizontalAlignment="Left">
    <StackPanel Orientation="Horizontal" Spacing="4">
@@ -93,7 +96,7 @@
     <Border x:Name="Inspector" Grid.Column="1" Width="230" Padding="16" Margin="12,0,0,0" Visibility="Collapsed" Background="{ThemeResource LumaSidebar}" CornerRadius="14"><ScrollViewer><StackPanel Spacing="12"><TextBlock Text="File details" FontSize="18" FontWeight="SemiBold"/><TextBlock x:Name="SelectionText" Text="Select media to inspect" TextWrapping="Wrap" IsTextSelectionEnabled="True"/><TextBox x:Name="TagsBox" Header="Tags for selected files" PlaceholderText="Comma-separated tags" MaxLength="1000"/><Button Content="Save tags" Click="SaveTags"/><Button Content="Add to album…" Click="AddToAlbum"/></StackPanel></ScrollViewer></Border>
    </Grid>
    <Border x:Name="SelectionBar" Grid.Row="4" Background="{ThemeResource LumaControl}" CornerRadius="12" Padding="10,4" HorizontalAlignment="Left" Visibility="Collapsed"><StackPanel Orientation="Horizontal" Spacing="8"><TextBlock x:Name="SelectionCount" VerticalAlignment="Center"/><Button Content="Open" Click="OpenSelected"/><Button Content="Copy" Click="CopySelected"/><Button Content="Cut" Click="CutSelected"/><Button Content="Paste" Click="PasteSelected"/><Button x:Name="FavoriteButton" Content="☆ Favorite" Click="ToggleFavorite"/></StackPanel></Border>
-   <Grid Grid.Row="5"><Grid.ColumnDefinitions><ColumnDefinition Width="*"/><ColumnDefinition Width="Auto"/></Grid.ColumnDefinitions><StackPanel Orientation="Horizontal" Spacing="8"><ProgressRing x:Name="Busy" Width="16" Height="16" IsActive="False"/><TextBlock x:Name="Status" Text="Opening library…" Opacity="0.6" FontSize="11" VerticalAlignment="Center" MaxWidth="500" TextTrimming="CharacterEllipsis"/></StackPanel><Button x:Name="CancelButton" Grid.Column="1" Content="Cancel" Click="CancelScan" Visibility="Collapsed"/></Grid>
+   <Grid Grid.Row="5"><Grid.ColumnDefinitions><ColumnDefinition Width="*"/><ColumnDefinition Width="Auto"/></Grid.ColumnDefinitions><StackPanel Orientation="Horizontal" Spacing="8"><ProgressRing x:Name="Busy" Width="16" Height="16" IsActive="False"/><TextBlock x:Name="Status" Text="Opening library…" Opacity="0.6" FontSize="11" VerticalAlignment="Center" MaxWidth="500" TextTrimming="CharacterEllipsis"/></StackPanel><StackPanel Grid.Column="1" Orientation="Horizontal" Spacing="8"><Button Content="Activity" Click="ShowActivity"/><Button x:Name="CancelButton" Content="Cancel" Click="CancelScan" Visibility="Collapsed"/></StackPanel></Grid>
   </Grid>
  </Grid>
 </Window>
