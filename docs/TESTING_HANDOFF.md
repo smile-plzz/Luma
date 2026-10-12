@@ -4,6 +4,8 @@ Shipment updated: 12 October 2026 (Asia/Dhaka). The portable gallery milestone i
 
 ## What changed in this shipment
 
+- [PR #10](https://github.com/smile-plzz/Luma/pull/10) adds visible Manage sources, explicit refresh scopes, Storage & previews, safe rebuild/repair, unused-preview cleanup and Activity. Removal refreshes album counts and never deletes originals.
+
 - Indexing saves persistent checkpoints every 100 media records and at folder boundaries. Resume after cancellation, app restart or reconnect; the published gallery stays intact until indexing finishes. Drive tools includes Resume indexing, Restart selected indexing and Indexing report.
 - Protected folders produce a report and prevent pruning older catalog entries. Completed folders are reused; changed folder timestamps conservatively invalidate the checkpoint. This is not a filesystem journal.
 - On this day shows matching capture dates from earlier years, with year labels, a date picker, existing filters and offline previews. Missing or stale capture metadata is excluded; modification dates are not treated as memories.
@@ -22,16 +24,16 @@ Shipment updated: 12 October 2026 (Asia/Dhaka). The portable gallery milestone i
 | --- | --- |
 | Platform | Windows 10 2004+ / Windows 11, x64 |
 | Package | Unsigned, self-contained portable ZIP; no installer |
-| Download | [Luma v0.1.0 Windows ZIP](https://github.com/smile-plzz/Luma/releases/download/v0.1.0/Luma-v0.1.0-win-x64.zip) |
-| Tested source | `ef23349e82723c98636f9e3a6acad5d7c210f135` |
-| Merge commit | `ab08a6c67faf894d09dce5a7a1feddd8b5a90d5e` |
-| Automated evidence | [Successful run 38168157835](https://github.com/smile-plzz/Luma/actions/runs/38168157835) |
-| Desktop evidence | [Screenshots, settings and smoke results](https://github.com/smile-plzz/Luma/actions/runs/38168157835/artifacts/11712639360) |
-| ZIP SHA-256 | `e2de4bb7bd9e54cdb63cce5efad43e688950625d21e53719ba4469d52e40a655` |
+| Download | [Luma v0.2.0 Windows ZIP](https://github.com/smile-plzz/Luma/releases/download/v0.2.0/Luma-v0.2.0-win-x64.zip) |
+| Tested source | `3119f225944b9362b21c8e97383ad33ce16de2d7` |
+| Merge commit | `106dcb700b58a5ae663b0648b2dc58e83e2f3d53` |
+| Automated evidence | [Successful run 38215576271](https://github.com/smile-plzz/Luma/actions/runs/38215576271) |
+| Desktop evidence | [Screenshots, settings and smoke results](https://github.com/smile-plzz/Luma/actions/runs/38215576271/artifacts/11732242447) |
+| ZIP SHA-256 | `75e9baddd0148a9a126242764e413fcb92889145e94221ad3a1a3d940c7cf6f3` |
 
-58 core tests passed on Windows and Linux, four Windows integration tests passed, and the packaged app passed native desktop automation. The UI run covers continuous scrolling across 260 fixtures and back, recycled images, search, favorites, albums, folders, offline preparation/disconnection, view preferences after restart and theme switching. Light/dark screenshots were inspected. Native reconnect checks verified preserved selection/scroll and no automatic indexing of an added file. The offline memories smoke passed; core tests cover resume across restart/mount changes, checkpoint invalidation, cancellation, concurrent scanner exclusion, filtering and leap days. Catalog-only scale tests cover 1k/10k/100k records.
+63 core tests passed on Windows and Linux, four Windows integration tests passed, and the packaged app passed native desktop automation. The UI run covers continuous scrolling across 260 fixtures and back, recycled images, search, favorites, albums, folders, offline preparation/disconnection, view preferences after restart and theme switching. Light/dark screenshots were inspected. Native reconnect checks verified preserved selection/scroll and no automatic indexing of an added file. Native management checks passed for removal cancellation/confirmation, refreshed album counts, all-source refresh, preview repair/rebuild, Activity and cleanup. The offline memories smoke passed; core tests cover resume across restart/mount changes, checkpoint invalidation, cancellation, concurrent scanner exclusion, filtering and leap days. Catalog-only scale tests cover 1k/10k/100k records.
 
-The versioned [v0.1.0 Release](https://github.com/smile-plzz/Luma/releases/tag/v0.1.0) contains the exact verified ZIP plus SHA256SUMS.txt. Release assets do not have the Actions artifact's automatic expiration. Source code archives are separate and do not contain the EXE. The release workflow verifies the successful source run and ZIP digest before publication. Source, build automation, release notes, tests and documentation remain versioned in Git; binaries are under Releases.
+The versioned [v0.2.0 Release](https://github.com/smile-plzz/Luma/releases/tag/v0.2.0) contains the exact verified ZIP plus SHA256SUMS.txt. Release assets do not have the Actions artifact's automatic expiration. Source code archives are separate and do not contain the EXE. The release workflow verifies the successful source run and ZIP digest before publication. Source, build automation, release notes, tests and documentation remain versioned in Git; binaries are under Releases.
 
 ## First run and upgrade
 
@@ -52,6 +54,7 @@ User data remains in `%LOCALAPPDATA%\Luma` when replacing the executable folder.
 | External drive | Prepare previews, disconnect, restart, browse offline, reconnect under another letter | Coverage before/after, source status, whether originals reopen |
 | Indexing recovery | Cancel a large import, restart Luma, reconnect and Resume indexing; inspect the report | Saved progress, final totals, skipped folders and retained organization |
 | Memories | Open On this day, choose another date, search and browse offline | Capture-date accuracy, year groups and prepared previews |
+| Maintenance | Manage sources; cancel then confirm removal on a disposable source; repair/rebuild previews; clean unused previews | Original files retained, correct album counts, scope, reclaimed space and offline previews |
 | Organization | Favorites, tags, album create/rename/remove, selected-item actions | Whether membership and annotations remain correct after restart |
 | File control | On disposable copies: copy/move, collision, cancel, rename, Explorer drag/drop, Recycle Bin | Intended and actual paths, skipped items, recovery behavior |
 | Usability | Typical window size, keyboard navigation, light/dark mode and display scaling | Screenshot, resolution/scaling, exact interaction |

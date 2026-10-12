@@ -1,6 +1,10 @@
 # QA
 
-## Current verified shipment: indexing recovery and memories
+## v0.2.0 verified management shipment
+
+[Run 38215576271](https://github.com/smile-plzz/Luma/actions/runs/38215576271), source `3119f225944b9362b21c8e97383ad33ce16de2d7`: 63 core tests pass on each OS, four Windows integrations pass and native desktop smoke passes. `management.txt` confirms source manager actions, removal cancellation and confirmation, updated album counts, all-source refresh, repair, rebuild, Activity and unused-preview cleanup. The package and compiled XAML resources passed publication checks; the screenshot was inspected. PR #10 is merged at `106dcb700b58a5ae663b0648b2dc58e83e2f3d53`. See TESTING_HANDOFF.md for the release and checksum.
+
+## Previous shipment: indexing recovery and memories
 
 [Run 38168157835](https://github.com/smile-plzz/Luma/actions/runs/38168157835), source `ef23349e82723c98636f9e3a6acad5d7c210f135`: all jobs passed. 58 core cases passed on each of Windows and Linux; four Windows integration tests and the native desktop smoke passed. `memories.txt` verifies capture-date browsing while offline; `reconnect.txt` verifies preserved selection/scroll without indexing. Light/dark screenshots were inspected. PR #9 is merged at `ab08a6c67faf894d09dce5a7a1feddd8b5a90d5e`; its source tree matches the tested commit. See [the handoff](TESTING_HANDOFF.md) for the ZIP and checksum.
 
@@ -79,4 +83,4 @@ On the physical bench, interrupt a large multi-folder import, close and reopen L
 
 ## Library management follow-up
 
-Core tests cover successful and offline rebuilds, cancellation and identity loss retaining old previews, capacity protection for other sources, exact cleanup estimates and removal, and source removal updating counts and album membership while retaining originals. Native smoke exercises visible source management, removal cancellation and confirmation, refreshed album counts, all-source refresh, missing-preview repair, successful preview rebuild, Activity and cleanup after source removal. Final run and release are recorded in TESTING_HANDOFF.md after verification.
+Core tests cover successful and offline rebuilds, cancellation and identity loss retaining old previews, capacity protection for other sources, exact cleanup estimates and removal, and source removal updating counts and album membership while retaining originals. Native smoke exercises visible source management, removal cancellation and confirmation, refreshed album counts, all-source refresh, missing-preview repair, successful preview rebuild, Activity and cleanup after source removal. The successful run and versioned release are recorded in TESTING_HANDOFF.md.

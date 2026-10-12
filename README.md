@@ -1,21 +1,26 @@
 # Luma
 
-**[Download Luma for Windows](https://github.com/smile-plzz/Luma/releases/latest/download/Luma-v0.1.0-win-x64.zip)** · [Release notes](https://github.com/smile-plzz/Luma/releases/latest)
+**[Download Luma for Windows](https://github.com/smile-plzz/Luma/releases/latest/download/Luma-v0.2.0-win-x64.zip)** · [Release notes](https://github.com/smile-plzz/Luma/releases/latest)
 
 A native Windows media library for existing folders and drives. Browse photos and videos, organize favorites and tags, and open originals in your default apps.
 
-Development of the portable gallery milestone is complete and merged into `main`. Luma is now in real-life testing and everyday-use evaluation; the current shipment includes the UI refinement, import-lock correction and cached-drive reconnect optimization from PRs #7 and #8, plus resumable indexing and On this day memories from PR #9. Start with the [testing handoff](docs/TESTING_HANDOFF.md) for the verified shipment, setup and feedback checklist.
+Development of the portable gallery milestone is complete and merged into `main`. Luma is now in real-life testing and everyday-use evaluation; the current shipment includes the UI refinement, import-lock correction and cached-drive reconnect optimization from PRs #7 and #8, plus resumable indexing and On this day memories from PR #9. The v0.2.0 update adds visible source management, explicit refresh scopes, preview repair/rebuild, storage cleanup and Activity. Start with the [testing handoff](docs/TESTING_HANDOFF.md) for the verified shipment, setup and feedback checklist.
 
 ## Run the Windows app
 
 1. Open the [verified Windows download](https://github.com/smile-plzz/Luma/releases/latest) in **Releases**.
-2. Download the **Luma-v0.1.0-win-x64.zip** under Assets. The automatically generated Source code archives do not contain the EXE.
+2. Download the **Luma-v0.2.0-win-x64.zip** under Assets. The automatically generated Source code archives do not contain the EXE.
 3. Extract the entire ZIP to a writable folder and run **Luma.App.exe**. Keep the bundled files beside the executable.
 4. Select **Add folder or drive**. Browse the indexed media; thumbnails are cached as you browse.
 
 Windows 10 version 2004+ or Windows 11, x64. The portable build bundles .NET and Windows App SDK dependencies. It is unsigned, so Windows may show its usual downloaded-app warning. There is no installer or store package yet.
 
 ## What works
+
+- **Manage sources**: browse, rename, refresh/resume or remove a source without deleting original files.
+- **Refresh** menu: current source, all connected sources, or status-only checks.
+- **Storage & previews**: scoped coverage, missing-preview repair, safe rebuild, clearing and confirmed unused-preview cleanup.
+- **Activity**: live progress, pause/cancel, saved indexing checkpoints and recent results.
 
 - Background read-only folder/drive scanning, cancellation, rescanning and safe stale-entry reconciliation after an error-free scan.
 - Continuous virtualized gallery; year/month/day grouping; capture-date fallback; date jumps, search, source/folder/album filters, favorites and tags.
