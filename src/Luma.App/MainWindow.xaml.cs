@@ -27,7 +27,7 @@ public sealed partial class MainWindow : Window
     private readonly HashSet<string> pendingCutIds = new();
     private CancellationTokenSource? preparationCancellation;
     private bool preparing, clearing;
-    private bool ready, scanning, operation;
+    private bool ready, scanning, operation, clipboardBusy;
     private string sourceSignature = "";
     private bool checkingSources;
 
@@ -259,19 +259,28 @@ public sealed partial class MainWindow : Window
         if (Selected is not null) Process.Start(new ProcessStartInfo("explorer.exe", $"/select,\"{Resolve(Selected.Item.Media)}\"") { UseShellExecute = true });
         return Task.CompletedTask;
     });
-    private async void CopyPath(object sender, RoutedEventArgs e) => await Guard(async () =>
+    private async void CopyPath(object sender, RoutedEventArgs e) => await ClipboardAction(async () =>
     {
         var selected=MediaGrid.SelectedItems.Cast<MediaCard>().Select(c=>c.Item.Media).ToArray();
         if(selected.Length==0)return;
         var paths=await Task.Run(()=>selected.Select(Resolve).ToArray());
         var data=new DataPackage(); data.SetText(string.Join(Environment.NewLine,paths)); Clipboard.SetContent(data); Clipboard.Flush();
         Notify($"Copied {paths.Length:N0} file paths.");
-    },true);
+    });
+    // Clipboard preparation is read-only and may run while background indexing owns
+    // the mutation guard. Serialize clipboard requests without blocking browsing.
+    private async Task ClipboardAction(Func<Task> action)
+    {
+        if(clipboardBusy) { Notify("Preparing your previous clipboard selection. Please wait."); return; }
+        clipboardBusy=true;
+        try { await Guard(action); }
+        finally { clipboardBusy=false; }
+    }
     private async Task Copy(bool cut)
     {
         var selected = MediaGrid.SelectedItems.Cast<MediaCard>().ToArray(); if (selected.Length == 0) return;
         var files = new List<IStorageItem>();
-        Status.Text=$"Preparing {selected.Length:N0} files for the clipboard…";
+        if(!scanning && !preparing)Status.Text=$"Preparing {selected.Length:N0} files for the clipboard…";
         var paths=await Task.Run(()=>selected.Select(c=>Resolve(c.Item.Media)).ToArray());
         foreach(var path in paths)files.Add(await StorageFile.GetFileFromPathAsync(path));
         var data = new DataPackage { RequestedOperation = cut ? DataPackageOperation.Move : DataPackageOperation.Copy };
@@ -284,8 +293,8 @@ public sealed partial class MainWindow : Window
         if(!scanning && !preparing)Status.Text=$"{files.Count:N0} files ready to {(cut ? "move" : "copy")}";
         Notify($"{files.Count} file(s) ready to {(cut ? "move" : "copy")}. Paste into a destination folder.");
     }
-    private async void CopySelected(object sender, RoutedEventArgs e) => await Guard(() => Copy(false), true);
-    private async void CutSelected(object sender, RoutedEventArgs e) => await Guard(() => Copy(true), true);
+    private async void CopySelected(object sender, RoutedEventArgs e) => await ClipboardAction(() => Copy(false));
+    private async void CutSelected(object sender, RoutedEventArgs e) => await ClipboardAction(() => Copy(true));
     private async Task Paste()
     {
         var data = Clipboard.GetContent();
@@ -364,8 +373,8 @@ public sealed partial class MainWindow : Window
         if (!ready || Microsoft.UI.Xaml.Input.FocusManager.GetFocusedElement(Root.XamlRoot) is TextBox) return false;
         e.Handled = true; return true;
     }
-    private async void CopyShortcut(KeyboardAccelerator sender, KeyboardAcceleratorInvokedEventArgs e) { if (HandleShortcut(e)) await Guard(() => Copy(false), true); }
-    private async void CutShortcut(KeyboardAccelerator sender, KeyboardAcceleratorInvokedEventArgs e) { if (HandleShortcut(e)) await Guard(() => Copy(true), true); }
+    private async void CopyShortcut(KeyboardAccelerator sender, KeyboardAcceleratorInvokedEventArgs e) { if (HandleShortcut(e)) await ClipboardAction(() => Copy(false)); }
+    private async void CutShortcut(KeyboardAccelerator sender, KeyboardAcceleratorInvokedEventArgs e) { if (HandleShortcut(e)) await ClipboardAction(() => Copy(true)); }
     private async void PasteShortcut(KeyboardAccelerator sender, KeyboardAcceleratorInvokedEventArgs e) { if (HandleShortcut(e)) await Guard(Paste, true); }
     private async void DeleteShortcut(KeyboardAccelerator sender, KeyboardAcceleratorInvokedEventArgs e) { if (HandleShortcut(e)) await Guard(Delete, true); }
     private async void RenameShortcut(KeyboardAccelerator sender, KeyboardAcceleratorInvokedEventArgs e) { if (HandleShortcut(e)) await Guard(Rename, true); }
