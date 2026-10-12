@@ -69,7 +69,17 @@ public sealed partial class MainWindow
             })));
             var refresh=ActionButton(checkpoint is null ? "Refresh" : "Resume",()=>Choose(()=>RefreshSources(source.Id))); refresh.IsEnabled=source.IsOnline; buttons.Children.Add(refresh);
             buttons.Children.Add(ActionButton("Remove from Luma",()=>Choose(()=>RemoveManagedSource(source.Id))));
-            row.Children.Add(buttons); panel.Children.Add(row);
+            var more=new Button { Content="More",Flyout=new MenuFlyout() };
+            var menu=(MenuFlyout)more.Flyout;
+            var metadata=new MenuFlyoutItem { Text="Refresh metadata",IsEnabled=source.IsOnline };
+            metadata.Click+=(_,_)=>Choose(()=>RefreshMetadataFor(source.Id)); menu.Items.Add(metadata);
+            var restart=new MenuFlyoutItem { Text="Restart indexing",IsEnabled=source.IsOnline };
+            restart.Click+=(_,_)=>Choose(async ()=>
+            {
+                if(!await Confirm("Restart indexing?",$"Discard the saved indexing checkpoint for {source.RootPath} and start a fresh scan? The published gallery and originals stay intact.","Restart"))return;
+                await catalog.DiscardIndexingAsync(source.Id); await RefreshSources(source.Id);
+            }); menu.Items.Add(restart);
+            row.Children.Add(buttons); row.Children.Add(more); panel.Children.Add(row);
         }
         await dialog.ShowAsync(); if(action is not null) await action();
     },true);
@@ -103,7 +113,7 @@ public sealed partial class MainWindow
         choices.AddRange(sources.Select(s=>new SourceChoice(s.Id,labels.GetValueOrDefault(s.Id,s.RootPath)+(s.IsOnline ? "" : " · Offline"))));
         var scope=new ComboBox { Header="Applies to",ItemsSource=choices,SelectedItem=choices.FirstOrDefault(c=>c.Id==SelectedSource) ?? choices[0],HorizontalAlignment=HorizontalAlignment.Stretch };
         Microsoft.UI.Xaml.Automation.AutomationProperties.SetAutomationId(scope,"StorageScope");
-        var stats=Description("");
+        var stats=Description(""); Microsoft.UI.Xaml.Automation.AutomationProperties.SetAutomationId(stats,"StorageCoverage");
         async Task UpdateStats()
         {
             var id=(scope.SelectedItem as SourceChoice)?.Id;

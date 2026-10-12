@@ -10,7 +10,7 @@ Shipment updated: 12 October 2026 (Asia/Dhaka). The portable gallery milestone i
 - Protected folders produce a report and prevent pruning older catalog entries. Completed folders are reused; changed folder timestamps conservatively invalidate the checkpoint. This is not a filesystem journal.
 - On this day shows matching capture dates from earlier years, with year labels, a date picker, existing filters and offline previews. Missing or stale capture metadata is excluded; modification dates are not treated as memories.
 
-- Known drives reopen from their saved catalog without scanning, including empty registered folders. Reconnect updates availability and visible missing previews while retaining selection and scroll. New or changed files are discovered with explicit **Rescan sources**.
+- Known drives reopen from their saved catalog without scanning, including empty registered folders. Reconnect updates availability and visible missing previews while retaining selection and scroll. New or changed files are discovered with explicit **Refresh all connected sources**.
 - Metadata enrichment after a scan is limited to the sources actually scanned.
 
 - Fixed the gallery read transaction that caused SQLite lock errors while a long external-drive scan was running. Regression checks cover concurrent browsing with both scan completion and cancellation.
@@ -41,7 +41,7 @@ The versioned [v0.2.0 Release](https://github.com/smile-plzz/Luma/releases/tag/v
 2. Extract the entire ZIP into a fresh writable folder. Run `Luma.App.exe` with all bundled files beside it; do not copy only the EXE.
 3. Add a representative folder containing your usual JPEG/PNG photos and MP4/MOV videos. Scanning catalogs originals without rearranging them; metadata enrichment follows discovery.
 4. Explore the timeline, folders, sorting, View options, search, favorites and albums. Open originals in their usual applications. Close and reopen to check retained settings and organization.
-5. Add the external drive, prepare offline previews in **Drive tools**, and check coverage before disconnecting. Saved previews are not original-file backups and may later be evicted by normal browsing.
+5. Add the external drive, repair missing previews in **Storage & previews**, and check coverage before disconnecting. Saved previews are not original-file backups and may later be evicted by normal browsing.
 
 User data remains in `%LOCALAPPDATA%\Luma` when replacing the executable folder. Do not run an older app against a library updated by this build: older versions do not maintain the new album identities during file operations. For rollback, close Luma and restore the matching pre-upgrade data backup along with the prior app. Preserve the newer data separately first; rollback discards organization added since that backup. Original-file moves/deletes are not undone by restoring the catalog.
 

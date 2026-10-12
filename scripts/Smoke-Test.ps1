@@ -133,23 +133,24 @@ try {
     if (Find-Control 'fixture000.bmp') { throw 'Folder navigation did not filter the library.' }
     (Wait-Control 'Up to parent folder').GetCurrentPattern([System.Windows.Automation.InvokePattern]::Pattern).Invoke()
     Wait-Control 'fixture000.bmp' | Out-Null
-    (Wait-Control 'Drive tools').GetCurrentPattern([System.Windows.Automation.ExpandCollapsePattern]::Pattern).Expand()
-    (Wait-Control 'Clear thumbnail cache').GetCurrentPattern([System.Windows.Automation.InvokePattern]::Pattern).Invoke()
+    (Wait-Control 'Storage & previews').GetCurrentPattern([System.Windows.Automation.InvokePattern]::Pattern).Invoke()
+    (Wait-Control 'Clear selected previews').GetCurrentPattern([System.Windows.Automation.InvokePattern]::Pattern).Invoke()
     (Wait-Control 'Clear previews').GetCurrentPattern([System.Windows.Automation.InvokePattern]::Pattern).Invoke()
-    Wait-Control 'Saved preview cache cleared.' | Out-Null
-    (Wait-Control 'Prepare offline previews').GetCurrentPattern([System.Windows.Automation.InvokePattern]::Pattern).Invoke()
-    for ($j = 0; $j -lt 120; $j++) {
-        $nodes = $window.FindAll([System.Windows.Automation.TreeScope]::Descendants,[System.Windows.Automation.Condition]::TrueCondition)
-        $coverage = $nodes | Where-Object { $_.Current.Name -like '260 / 260 previews saved*' } | Select-Object -First 1
-        if ($coverage) { break }; Start-Sleep -Milliseconds 500
-    }
-    if (!$coverage) { throw 'Offline preparation did not report full fixture coverage.' }
+    Start-Sleep -Seconds 1
+    (Wait-Control 'Storage & previews').GetCurrentPattern([System.Windows.Automation.InvokePattern]::Pattern).Invoke()
+    (Wait-Control 'Repair missing previews').GetCurrentPattern([System.Windows.Automation.InvokePattern]::Pattern).Invoke()
+    Wait-Control 'Repair finished: 260 / 260 previews saved. Remaining gaps may need a connected source, supported codec or more space.' | Out-Null
+    (Wait-Control 'Storage & previews').GetCurrentPattern([System.Windows.Automation.InvokePattern]::Pattern).Invoke()
+    $coverage=Find-Id 'StorageCoverage'
+    if ($coverage.Current.Name -notlike '260 / 260 current previews saved*') { throw 'Offline coverage is incomplete.' }
     $coverage.Current.Name | Set-Content artifacts/qa/offline-coverage.txt
+    (Wait-Control 'Close').GetCurrentPattern([System.Windows.Automation.InvokePattern]::Pattern).Invoke()
     # Make only the isolated synthetic fixture source unavailable, then re-query the cached library.
     $fixtureRoot = Join-Path $smokeRoot "Fixture originals"
     if (!(Test-Path $fixtureRoot)) { throw 'Isolated smoke fixture root was not found.' }
     Move-Item $fixtureRoot ($fixtureRoot + ' disconnected')
-    (Wait-Control 'Refresh drive status').GetCurrentPattern([System.Windows.Automation.InvokePattern]::Pattern).Invoke()
+    (Wait-Control 'Refresh library').GetCurrentPattern([System.Windows.Automation.InvokePattern]::Pattern).Invoke()
+    (Wait-Control 'Update drive status only').GetCurrentPattern([System.Windows.Automation.InvokePattern]::Pattern).Invoke()
     Start-Sleep -Seconds 2
     Wait-Control 'fixture000.bmp' | Out-Null
     Wait-Control 'Trips' | Out-Null
@@ -165,10 +166,9 @@ try {
     (Wait-Control 'Date modified').GetCurrentPattern([System.Windows.Automation.SelectionItemPattern]::Pattern).Select()
     Start-Sleep -Seconds 2
 
-    (Wait-Control 'Check offline coverage').GetCurrentPattern([System.Windows.Automation.InvokePattern]::Pattern).Invoke()
-    Start-Sleep -Seconds 1
-    $nodes = $window.FindAll([System.Windows.Automation.TreeScope]::Descendants,[System.Windows.Automation.Condition]::TrueCondition)
-    if (!($nodes | Where-Object { $_.Current.Name -like '260 / 260 previews saved*' })) { throw 'Preview coverage was lost when fixture source went offline.' }
+    (Wait-Control 'Storage & previews').GetCurrentPattern([System.Windows.Automation.InvokePattern]::Pattern).Invoke()
+    if ((Find-Id 'StorageCoverage').Current.Name -notlike '260 / 260 current previews saved*') { throw 'Offline coverage was lost.' }
+    (Wait-Control 'Close').GetCurrentPattern([System.Windows.Automation.InvokePattern]::Pattern).Invoke()
 
     # Reconnect without scanning; keep the existing cards and selection, and leave
     # a newly added file undiscovered until an explicit rescan is requested.
@@ -177,7 +177,8 @@ try {
     $beforeReconnect=$gallery.GetCurrentPattern([System.Windows.Automation.ScrollPattern]::Pattern).Current.VerticalScrollPercent
     Move-Item ($fixtureRoot + ' disconnected') $fixtureRoot
     Copy-Item (Join-Path $fixtureRoot 'fixture000.bmp') (Join-Path $fixtureRoot 'not-indexed-yet.bmp')
-    (Wait-Control 'Refresh drive status').GetCurrentPattern([System.Windows.Automation.InvokePattern]::Pattern).Invoke()
+    (Wait-Control 'Refresh library').GetCurrentPattern([System.Windows.Automation.InvokePattern]::Pattern).Invoke()
+    (Wait-Control 'Update drive status only').GetCurrentPattern([System.Windows.Automation.InvokePattern]::Pattern).Invoke()
     Start-Sleep -Seconds 2
     $selected=$gallery.GetCurrentPattern([System.Windows.Automation.SelectionPattern]::Pattern).Current.GetSelection()
     if ($selected.Count -ne 1 -or ($selected[0].GetRuntimeId() -join ',') -ne $beforeSelection) { throw 'Reconnect lost the selected card.' }
@@ -241,6 +242,32 @@ try {
     (Wait-Control 'Rebuild previews').GetCurrentPattern([System.Windows.Automation.InvokePattern]::Pattern).Invoke()
     (Wait-Control 'Rebuild').GetCurrentPattern([System.Windows.Automation.InvokePattern]::Pattern).Invoke()
     Wait-Control 'Rebuilt 260 of 260 previews. Offline, unsupported or capacity-limited previews were preserved.' | Out-Null
+    # Non-everyday media is visible by default and the opt-in filter is removable.
+    [System.IO.File]::WriteAllBytes((Join-Path $fixtureRoot 'visible-raw.dng'),[byte[]](1,2,3,4))
+    (Wait-Control 'Refresh library').GetCurrentPattern([System.Windows.Automation.InvokePattern]::Pattern).Invoke()
+    (Wait-Control 'Refresh all connected sources').GetCurrentPattern([System.Windows.Automation.InvokePattern]::Pattern).Invoke()
+    Wait-Control 'Scan complete: 261 media files. Metadata saved. Navigate or Reset to apply new dates without shifting your current view.' | Out-Null
+    Wait-Control 'visible-raw.dng' | Out-Null
+    (Wait-Control 'Gallery view options').GetCurrentPattern([System.Windows.Automation.InvokePattern]::Pattern).Invoke()
+    (Wait-Control 'Everyday formats only').GetCurrentPattern([System.Windows.Automation.TogglePattern]::Pattern).Toggle()
+    [System.Windows.Forms.SendKeys]::SendWait('{ESC}')
+    Wait-Control '260 of 261 items · Filtered' | Out-Null
+    if (Find-Control 'visible-raw.dng') { throw 'Everyday-only filter did not apply.' }
+    (Wait-Control 'Remove filter: Everyday formats only').GetCurrentPattern([System.Windows.Automation.InvokePattern]::Pattern).Invoke()
+    Wait-Control 'visible-raw.dng' | Out-Null
+    (Wait-Control 'Gallery view options').GetCurrentPattern([System.Windows.Automation.InvokePattern]::Pattern).Invoke()
+    (Wait-Control 'Everyday formats only').GetCurrentPattern([System.Windows.Automation.TogglePattern]::Pattern).Toggle()
+    [System.Windows.Forms.SendKeys]::SendWait('{ESC}')
+    (Wait-Control 'Reset').GetCurrentPattern([System.Windows.Automation.InvokePattern]::Pattern).Invoke()
+    Wait-Control 'visible-raw.dng' | Out-Null
+    if (Find-Control 'Drive tools') { throw 'Legacy maintenance controls are still exposed.' }
+    if (Find-Control 'Timeline') { throw 'Timeline is still a duplicate navigation destination.' }
+    (Wait-Control 'Gallery view options').GetCurrentPattern([System.Windows.Automation.InvokePattern]::Pattern).Invoke()
+    (Wait-Control 'Show timeline').GetCurrentPattern([System.Windows.Automation.InvokePattern]::Pattern).Invoke()
+    [System.Windows.Forms.SendKeys]::SendWait('{ESC}')
+    Wait-Control 'visible-raw.dng' | Out-Null
+    if ((Wait-Control 'Settings').Current.IsOffscreen -or (Wait-Control 'Storage & previews').Current.IsOffscreen) { throw 'Pinned maintenance destinations are offscreen.' }
+    'PASS: non-everyday file visible by default, filter counts and removal, Reset reveals files, consolidated navigation.' | Set-Content artifacts/qa/filters-navigation.txt
     (Wait-Control 'Activity').GetCurrentPattern([System.Windows.Automation.InvokePattern]::Pattern).Invoke()
     Wait-Control 'Pause current work' | Out-Null
     (Wait-Control 'Close').GetCurrentPattern([System.Windows.Automation.InvokePattern]::Pattern).Invoke()
