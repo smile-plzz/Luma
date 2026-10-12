@@ -246,10 +246,12 @@ try {
     (Wait-Control 'Close').GetCurrentPattern([System.Windows.Automation.InvokePattern]::Pattern).Invoke()
     (Wait-Control 'Manage sources').GetCurrentPattern([System.Windows.Automation.InvokePattern]::Pattern).Invoke()
     (Wait-Control 'Remove from Luma').GetCurrentPattern([System.Windows.Automation.InvokePattern]::Pattern).Invoke()
+    Wait-Control 'Remove source from Luma?' | Out-Null
     (Wait-Control 'Cancel').GetCurrentPattern([System.Windows.Automation.InvokePattern]::Pattern).Invoke()
     Wait-Control 'fixture000.bmp' | Out-Null
     (Wait-Control 'Manage sources').GetCurrentPattern([System.Windows.Automation.InvokePattern]::Pattern).Invoke()
     (Wait-Control 'Remove from Luma').GetCurrentPattern([System.Windows.Automation.InvokePattern]::Pattern).Invoke()
+    Wait-Control 'Remove source from Luma?' | Out-Null
     (Wait-Control 'Remove from Luma').GetCurrentPattern([System.Windows.Automation.InvokePattern]::Pattern).Invoke()
     Wait-Control 'Source removed from Luma. Originals are untouched. Storage cleanup can remove its unused previews.' | Out-Null
     Wait-Control 'A little room for memories' | Out-Null
