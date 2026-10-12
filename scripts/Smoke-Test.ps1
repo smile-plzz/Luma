@@ -230,6 +230,39 @@ try {
     $graphics.CopyFromScreen([int]$rectangle.X,[int]$rectangle.Y,0,0,$bitmap.Size)
     $bitmap.Save((Join-Path (Get-Location) 'artifacts/qa/dark-gallery.png'))
     $graphics.Dispose(); $bitmap.Dispose()
+    # Management is discoverable and works through actual native controls.
+    (Wait-Control 'Refresh library').GetCurrentPattern([System.Windows.Automation.InvokePattern]::Pattern).Invoke()
+    (Wait-Control 'Refresh all connected sources').GetCurrentPattern([System.Windows.Automation.InvokePattern]::Pattern).Invoke()
+    Wait-Control 'Scan complete: 260 media files. Metadata saved. Navigate or Reset to apply new dates without shifting your current view.' | Out-Null
+    (Wait-Control 'Storage & previews').GetCurrentPattern([System.Windows.Automation.InvokePattern]::Pattern).Invoke()
+    (Wait-Control 'Repair missing previews').GetCurrentPattern([System.Windows.Automation.InvokePattern]::Pattern).Invoke()
+    Wait-Control 'Repair finished: 260 / 260 previews saved. Remaining gaps may need a connected source, supported codec or more space.' | Out-Null
+    (Wait-Control 'Storage & previews').GetCurrentPattern([System.Windows.Automation.InvokePattern]::Pattern).Invoke()
+    (Wait-Control 'Rebuild previews').GetCurrentPattern([System.Windows.Automation.InvokePattern]::Pattern).Invoke()
+    (Wait-Control 'Rebuild').GetCurrentPattern([System.Windows.Automation.InvokePattern]::Pattern).Invoke()
+    Wait-Control 'Rebuilt 260 of 260 previews. Offline, unsupported or capacity-limited previews were preserved.' | Out-Null
+    (Wait-Control 'Activity').GetCurrentPattern([System.Windows.Automation.InvokePattern]::Pattern).Invoke()
+    Wait-Control 'Pause current work' | Out-Null
+    (Wait-Control 'Close').GetCurrentPattern([System.Windows.Automation.InvokePattern]::Pattern).Invoke()
+    (Wait-Control 'Manage sources').GetCurrentPattern([System.Windows.Automation.InvokePattern]::Pattern).Invoke()
+    (Wait-Control 'Remove from Luma').GetCurrentPattern([System.Windows.Automation.InvokePattern]::Pattern).Invoke()
+    (Wait-Control 'Cancel').GetCurrentPattern([System.Windows.Automation.InvokePattern]::Pattern).Invoke()
+    Wait-Control 'fixture000.bmp' | Out-Null
+    (Wait-Control 'Manage sources').GetCurrentPattern([System.Windows.Automation.InvokePattern]::Pattern).Invoke()
+    (Wait-Control 'Remove from Luma').GetCurrentPattern([System.Windows.Automation.InvokePattern]::Pattern).Invoke()
+    (Wait-Control 'Remove from Luma').GetCurrentPattern([System.Windows.Automation.InvokePattern]::Pattern).Invoke()
+    Wait-Control 'Source removed from Luma. Originals are untouched. Storage cleanup can remove its unused previews.' | Out-Null
+    Wait-Control 'A little room for memories' | Out-Null
+    if (!(Test-Path (Join-Path $fixtureRoot 'fixture000.bmp'))) { throw 'Source removal changed an original file.' }
+    (Wait-Control 'Album filter').GetCurrentPattern([System.Windows.Automation.ExpandCollapsePattern]::Pattern).Expand()
+    Wait-Control 'Smoke album (0)' | Out-Null
+    [System.Windows.Forms.SendKeys]::SendWait('{ESC}')
+    (Wait-Control 'Storage & previews').GetCurrentPattern([System.Windows.Automation.InvokePattern]::Pattern).Invoke()
+    (Wait-Control 'Clean unused previews').GetCurrentPattern([System.Windows.Automation.InvokePattern]::Pattern).Invoke()
+    (Wait-Control 'Clean up').GetCurrentPattern([System.Windows.Automation.InvokePattern]::Pattern).Invoke()
+    Start-Sleep -Seconds 2
+    if ((Get-ChildItem (Join-Path $smokeRoot 'thumbnails') -Filter '*.thumb').Count -ne 0) { throw 'Unused previews survived cleanup after removing their source.' }
+    'PASS: source manager, removal cancellation, confirmed removal, refreshed album counts, all-source refresh, repair, rebuild, activity and unused-preview cleanup.' | Set-Content artifacts/qa/management.txt
     'PASS: native window, 260-item continuous scrolling and image recycling, search, selection, favorites, albums, cached folders, offline preparation and view preference restart work through Windows UI Automation.' | Set-Content artifacts/qa/result.txt
 } catch {
     if ($window) {

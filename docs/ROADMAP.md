@@ -21,3 +21,7 @@ The app opens originals in default applications. Cloud accounts, an embedded pla
 ## Resumable indexing and memory browsing
 
 Implemented persistent indexing checkpoints with resume/restart/report controls and atomic catalog publication, plus On this day capture-date browsing with date selection and offline previews. All automated checks passed (58 core cases per OS, four Windows integration cases and native desktop smoke). The downloadable shipment is tracked in TESTING_HANDOFF.md. Smart collections, pinned previews and installer/update notifications remain separate future work.
+
+## Library management refinement
+
+User-confirmed real-machine functionality led to a discoverability-focused follow-up: Manage sources, explicit refresh scopes, Storage & previews, safe rebuild/repair, unused-preview cleanup and Activity. Browsing-position restoration and catalog backup/restore remain subsequent work; they are not included in this maintenance release.
