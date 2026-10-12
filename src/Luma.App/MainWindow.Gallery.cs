@@ -145,10 +145,11 @@ public sealed partial class MainWindow
         {
             var button=new Button { Content=label+" ×",MaxWidth=220 };
             Microsoft.UI.Xaml.Automation.AutomationProperties.SetName(button,"Remove filter: "+label);
+            ToolTipService.SetToolTip(button,label);
             button.Click+=async (_,_)=>
             {
                 ready=false;
-                try { clear(); beforeTicks=null; settings.Save(); }
+                try { clear(); settings.Save(); }
                 finally { ready=true; }
                 await Guard(Refresh);
             };
@@ -162,6 +163,7 @@ public sealed partial class MainWindow
         if(!settings.IncludeDescendants)Add("This folder only",()=> { settings.IncludeDescendants=true; RecursiveToggle.IsChecked=true; });
         if(Navigation.SelectedIndex>0)Add(Navigation.SelectedItem?.ToString() ?? "Category",()=> { Navigation.SelectedIndex=0; Heading.Text="Library"; MemoryDate.Visibility=Visibility.Collapsed; });
         if(beforeTicks is not null)Add("Date limit",()=>beforeTicks=null);
+        FilterBar.Visibility=ActiveFilters.Children.Count>0 ? Visibility.Visible : Visibility.Collapsed;
     }
     private async void ShowTimeline(object sender,RoutedEventArgs e)
     {

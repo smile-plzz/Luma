@@ -75,6 +75,16 @@ public sealed class GalleryTests : IDisposable
         Assert.Single((await catalog.QueryAsync(new(BeforeTicks:before))).Items);
         Assert.Contains("2025-01",await catalog.MonthsAsync(new()));
     }
+    [Fact] public async Task AllFormatsDefaultAndExplicitFilterHaveConsistentCountsAndPages()
+    {
+        await Seed(2); File.WriteAllBytes(Path.Combine(root,"camera.dng"),new byte[4]);
+        File.WriteAllBytes(Path.Combine(root,"archive.tiff"),new byte[4]); await catalog.ScanAsync("source",root);
+        var all=await catalog.QueryAsync(new(Sort:MediaSort.Name,Limit:1));
+        Assert.Equal(4,all.Total); Assert.Equal(4,(await catalog.SourceCountsAsync())["source"]);
+        var common=await catalog.QueryAsync(new(CommonOnly:true,Limit:1)); Assert.Equal(2,common.Total);
+        Assert.Equal(2,(await catalog.QueryAsync(new(CommonOnly:true,Limit:1,Cursor:common.Next))).Total);
+        Assert.Contains((await catalog.QueryAsync(new())).Items,i=>i.Media.RelativePath=="camera.dng");
+    }
     [Fact] public async Task InitializeIsRepeatableAndPreservesIdentityAndAlbums()
     {
         await Seed(1); var item=Assert.Single((await catalog.QueryAsync(new())).Items);

@@ -158,21 +158,6 @@ public sealed partial class MainWindow : Window
         if(connected.Length==0) { Notify("Reconnect a drive with paused indexing to resume."); return; }
         await Scan(connected);
     },true);
-    private async void ShowIndexingReport(object sender,RoutedEventArgs e) => await Guard(async () =>
-    {
-        var checkpoints=await catalog.IndexingCheckpointsAsync();
-        var warnings=await catalog.IndexingWarningsAsync();
-        var lines=checkpoints.Select(c=>$"Paused: {c.MediaCount:N0} file records, {c.CompletedFolders:N0} completed folders ({c.SourceId})")
-            .Concat(warnings.Select(w=>$"Skipped {w.Folder} ({w.SourceId}): {w.Message}"));
-        await new ContentDialog { XamlRoot=Root.XamlRoot,Title="Indexing report",Content=new ScrollViewer { MaxHeight=400,Content=new TextBlock { Text=lines.Any() ? string.Join("\n\n",lines) : "No paused indexing or skipped folders.",TextWrapping=TextWrapping.Wrap } },CloseButtonText="Close" }.ShowAsync();
-    },true);
-    private async void RestartIndexing(object sender,RoutedEventArgs e) => await Guard(async () =>
-    {
-        if(SelectedSource is not string id) { Notify("Select a single source first."); return; }
-        if(!await Confirm("Restart indexing?","Discard this source’s indexing checkpoint and scan from the beginning. Your saved gallery and originals stay intact.","Restart")) return;
-        await catalog.DiscardIndexingAsync(id); await RescanCurrent();
-    },true);
-    private async void Rescan(object sender, RoutedEventArgs e) => await Guard(RescanCurrent, true);
     private Task RescanCurrent() => RefreshSources(SelectedSource);
     private async Task Scan(IEnumerable<SourceInfo> sources, bool reuseExisting = false)
     {
@@ -198,7 +183,7 @@ public sealed partial class MainWindow : Window
             if (scannedIds.Count == 0)
             {
                 Status.Text = $"{count:N0} saved items · Ready";
-                Notify(reuseExisting ? $"Opened {count:N0} saved items without rescanning. Use Rescan sources to discover changed files." : "No connected sources to rescan. Saved media remains available.");
+                Notify(reuseExisting ? $"Opened {count:N0} saved items without rescanning. Use Refresh to discover changed files." : "No connected sources to rescan. Saved media remains available.");
                 return;
             }
             Status.Text = "Library available · reading capture dates and dimensions…";
@@ -226,11 +211,6 @@ public sealed partial class MainWindow : Window
         }
     }
     private void CancelScan(object sender, RoutedEventArgs e) { scanCancellation?.Cancel(); preparationCancellation?.Cancel(); }
-    private async void RemoveSource(object sender, RoutedEventArgs e) => await Guard(async () =>
-    {
-        if(SelectedSource is not string id) { Notify("Choose a source, or open Manage sources to remove one."); return; }
-        await RemoveManagedSource(id);
-    },true);
     private void SelectionChanged(object sender, SelectionChangedEventArgs e)
     {
         var card = Selected; var selected = MediaGrid.SelectedItems.Cast<MediaCard>().ToArray();

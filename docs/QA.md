@@ -84,3 +84,7 @@ On the physical bench, interrupt a large multi-folder import, close and reopen L
 ## Library management follow-up
 
 Core tests cover successful and offline rebuilds, cancellation and identity loss retaining old previews, capacity protection for other sources, exact cleanup estimates and removal, and source removal updating counts and album membership while retaining originals. Native smoke exercises visible source management, removal cancellation and confirmation, refreshed album counts, all-source refresh, missing-preview repair, successful preview rebuild, Activity and cleanup after source removal. The successful run and versioned release are recorded in TESTING_HANDOFF.md.
+
+## Filter and navigation refinement
+
+Tests cover new-library defaults, one-time settings migration, retention of later explicit filter choices, all-format catalog counts/cursor filtering, and native display of an indexed non-everyday DNG fixture. Desktop checks enable the opt-in format filter, verify matching-versus-library counts, remove its chip, and use Reset to reveal the file again. The existing source/storage/activity tests now use consolidated destinations. A DNG fixture with no valid image payload verifies catalog visibility independently from preview decoding.

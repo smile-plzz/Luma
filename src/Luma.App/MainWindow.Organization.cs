@@ -50,12 +50,6 @@ public sealed partial class MainWindow
         await catalog.SetAlbumItemsAsync(id,MediaGrid.SelectedItems.Cast<MediaCard>().Select(c=>c.Item.Media).ToArray(),false);
         await LoadAlbums(); await Refresh();
     },true);
-    private async void RenameSourceLabel(object sender,RoutedEventArgs e) => await Guard(async () =>
-    {
-        if(SelectedSource is not string id){Notify("Select a source first.");return;}
-        var name=await Prompt("Name this source","A friendly label. The folder itself will not be renamed.",""); if(name is null)return;
-        await catalog.LabelSourceAsync(id,name); await LoadSources();
-    },true);
     private async Task RefreshMetadataFor(string? source)
     {
         scanning=true; scanCancellation=new(); Busy.IsActive=true; CancelButton.Visibility=Visibility.Visible;

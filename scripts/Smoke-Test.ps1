@@ -262,6 +262,11 @@ try {
     Wait-Control 'visible-raw.dng' | Out-Null
     if (Find-Control 'Drive tools') { throw 'Legacy maintenance controls are still exposed.' }
     if (Find-Control 'Timeline') { throw 'Timeline is still a duplicate navigation destination.' }
+    (Wait-Control 'Gallery view options').GetCurrentPattern([System.Windows.Automation.InvokePattern]::Pattern).Invoke()
+    (Wait-Control 'Show timeline').GetCurrentPattern([System.Windows.Automation.InvokePattern]::Pattern).Invoke()
+    [System.Windows.Forms.SendKeys]::SendWait('{ESC}')
+    Wait-Control 'visible-raw.dng' | Out-Null
+    if ((Wait-Control 'Settings').Current.IsOffscreen -or (Wait-Control 'Storage & previews').Current.IsOffscreen) { throw 'Pinned maintenance destinations are offscreen.' }
     'PASS: non-everyday file visible by default, filter counts and removal, Reset reveals files, consolidated navigation.' | Set-Content artifacts/qa/filters-navigation.txt
     (Wait-Control 'Activity').GetCurrentPattern([System.Windows.Automation.InvokePattern]::Pattern).Invoke()
     Wait-Control 'Pause current work' | Out-Null
