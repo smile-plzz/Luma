@@ -199,7 +199,7 @@ public sealed partial class MainWindow : Window
         }
         catch(OperationCanceledException)
         {
-            Notify("Indexing paused. Completed folders are saved on this PC. Choose Activity → Resume paused indexing to continue; your published gallery is intact.");
+            Notify(published ? "Date reading paused. Your library is ready to browse. Use Manage sources → More → Refresh metadata to continue changed files." : "Indexing paused. Completed folders are saved on this PC. Choose Activity → Resume paused indexing to continue; your published gallery is intact.");
             throw;
         }
         catch(Exception)

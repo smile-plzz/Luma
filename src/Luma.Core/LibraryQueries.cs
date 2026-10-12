@@ -107,7 +107,9 @@ public sealed partial class MediaCache
             from += " AND " + (query.Sort == MediaSort.Captured ? OrderValue(MediaSort.Captured) : "m.modified_ticks") + " >= $from";
             cmd.Parameters.AddWithValue("$from",query.FromTicks.Value);
         }
-        cmd.CommandText = "SELECT COUNT(*) " + from;
+        var simpleCount=query.Search.Trim().Length==0 && !query.FavoritesOnly && query.MemoriesOn is null && query.AlbumId is null
+            && !query.CommonOnly && query.Folder.Length==0 && query.IncludeDescendants && query.BeforeTicks is null && query.FromTicks is null;
+        cmd.CommandText = simpleCount ? "SELECT COUNT(*) FROM media m WHERE ($source IS NULL OR m.source_id=$source) AND ($kind IS NULL OR m.kind=$kind)" : "SELECT COUNT(*) " + from;
         var total = query.KnownTotal ?? Convert.ToInt64(await cmd.ExecuteScalarAsync(ct));
         if (query.Cursor is not null)
         {
