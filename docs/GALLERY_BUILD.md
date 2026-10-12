@@ -17,7 +17,7 @@ Existing data remains in `%LOCALAPPDATA%\Luma`. Before upgrading an important li
 - **View** changes thumbnail size, compact spacing, fit/crop, filename/detail visibility, date grouping, everyday formats and nested-folder inclusion. These preferences persist. Ctrl+mouse-wheel resizes thumbnails.
 - Sort by date taken, date modified, name, size or extension; use the direction button for ascending/descending. Name/size/type show an ungrouped grid. Group by year, month, day or none when using date ordering.
 - **Jump to month** reads available dates from the catalog and starts at the end of the chosen month, continuing toward older media. **Reset** restores the full result set and clears search/source/folder/album filters.
-- Choose a drive/source, enter its cached subfolders and use **Up to parent folder**. A friendly source label can be assigned in Drive tools. Folder counts include descendants even when the grid's nested-folder option is off.
+- Choose a drive/source, enter its cached subfolders and use **Up to parent folder**. A friendly source label can be assigned in **Manage sources**. Folder counts include descendants even when the grid's nested-folder option is off.
 - **Details** opens the optional inspector for the selected file, metadata provenance and tags. The selection toolbar appears only when needed.
 
 Everyday formats include JPEG/JPG, PNG, HEIC/HEIF, GIF, WebP, BMP, MP4 and MOV. Disable the everyday-only view to include other supported indexed extensions. A recognized extension does not guarantee a Windows preview codec; unsupported previews remain placeholders and originals open in their associated application.
@@ -50,7 +50,7 @@ The latest transfer report is `%LOCALAPPDATA%\Luma\last-transfer.json`. If files
 
 ## Offline behavior and activity
 
-Drive tools contains scanning, metadata refresh, offline preparation, coverage and cache clearing. The footer reports work and provides cancellation. The existing Phase 2 non-evicting bulk preparation and bounded browsing LRU remain in force: preparation preserves existing previews at capacity, but later browsing may evict previews. Cached media and virtual organization remain useful without the drive; original-file operations require a connected, unchanged file.
+Refresh controls scanning, Manage sources provides metadata refresh, and Storage & previews provides offline preparation, coverage and cache clearing. The footer reports work and provides cancellation. The existing Phase 2 non-evicting bulk preparation and bounded browsing LRU remain in force: preparation preserves existing previews at capacity, but later browsing may evict previews. Cached media and virtual organization remain useful without the drive; original-file operations require a connected, unchanged file.
 
 Availability checks update source indicators and loaded-card availability in place without rebuilding the gallery or losing selection/scroll. They also retry visible missing previews when the source reconnects. Checks run periodically (30 seconds), when the window becomes active, or on **Refresh → Update drive status only**. A file action always resolves identity and validates its version again. No original is moved merely by scanning, enriching metadata or organizing an album.
 
@@ -70,7 +70,7 @@ If an older build shows `SQLite Error 5: database is locked` during indexing, le
 
 ## Visual refinement after initial testing
 
-The polished gallery uses a soft neutral sidebar, a quieter photo canvas, rounded borderless controls and a single compact view toolbar. Light and dark palettes adapt with the existing theme setting, and high-contrast colors use system resources. Folder navigation is shown after selecting a source; maintenance remains in Drive tools. File counts and progress stay visible without database/loading terminology dominating the gallery. Loaded transparent previews no longer show a placeholder icon underneath them.
+The polished gallery uses a soft neutral sidebar, a quieter photo canvas, rounded borderless controls and a single compact view toolbar. Light and dark palettes adapt with the existing theme setting, and high-contrast colors use system resources. Folder navigation is shown after selecting a source; maintenance lives in Manage sources, Storage & previews and Activity. File counts and progress stay visible without database/loading terminology dominating the gallery. Loaded transparent previews no longer show a placeholder icon underneath them.
 
 The interaction model stays the same: Windows selection and shortcuts, the optional inspector, accessible control names, continuous browsing and default-app opening. This is a frontend refinement, with the separately documented import-lock correction included in the same follow-up build.
 
@@ -78,7 +78,7 @@ The interaction model stays the same: Windows selection and shortcuts, the optio
 
 After the first completed scan, adding the same registered folder/drive again reuses its PC-local catalog instead of enumerating the HDD. Sources with zero indexed media are remembered too. Browsing reads catalog data and saved thumbnail files immediately; cache hits do not probe the original drive. Missing previews are generated only for visible items unless you request bulk preparation.
 
-Reconnecting updates source/card availability and retries visible missing previews without clearing cards, selection or scroll position. Original-file actions still resolve the actual volume identity and validate the file before use. The status refresh checks registered roots; it does not walk source directories or discover files. It is available in Drive tools and runs on window activation and every 30 seconds when idle.
+Reconnecting updates source/card availability and retries visible missing previews without clearing cards, selection or scroll position. Original-file actions still resolve the actual volume identity and validate the file before use. The status refresh checks registered roots; it does not walk source directories or discover files. It is available through **Refresh → Update drive status only** and runs on window activation and every 30 seconds when idle.
 
 Use **Refresh all connected sources** to discover additions, deletions or edits made outside Luma. This remains an explicit directory walk, not a filesystem journal or incremental change detector. Metadata enrichment following a scan is now limited to the sources actually scanned, and unchanged file versions continue to reuse saved metadata. For reliable offline browsing, prepare previews and check coverage before unplugging; bounded cache eviction rules are unchanged.
 
@@ -86,7 +86,7 @@ Use **Refresh all connected sources** to discover additions, deletions or edits 
 
 Indexing saves file records in batches of 100 and folder completion checkpoints in the PC-local database. Cancellation, app closure, process termination or a disconnect retains committed checkpoints. The previous published gallery, albums and annotations remain available; the new snapshot replaces it only when traversal finishes. Up to the current uncommitted batch is repeated after interruption.
 
-Open **Activity → Resume paused indexing** after reconnecting to continue all paused, connected sources. **Refresh all connected sources** resumes a pending checkpoint for the selected source (or all connected sources). Adding a source with unfinished indexing also resumes it. Completed source reopening and ordinary drive reconnect remain catalog-only. Paused sources appear in Drive tools after restarting Luma, including an interrupted first import.
+Open **Activity → Resume paused indexing** after reconnecting to continue all paused, connected sources. **Refresh current source** and **Refresh all connected sources** resume pending checkpoints in their respective scopes. Adding a source with unfinished indexing also resumes it. Completed source reopening and ordinary drive reconnect remain catalog-only. Paused sources appear in Activity and Manage sources after restarting Luma, including an interrupted first import.
 
 Resume resolves the same volume identity at its current mount path. Completed folders are checked by directory attributes, without enumerating their files. In the interrupted folder, filenames are enumerated again but committed file records are reused. This is not a filesystem journal: file content edits that leave directory timestamps unchanged require a fresh rescan after completion. If a completed folder's timestamp changed or it disappeared, Luma conservatively starts a fresh snapshot. Do not edit the source while indexing if you want maximum checkpoint reuse.
 

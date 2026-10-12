@@ -1,5 +1,9 @@
 # QA
 
+## v0.3.0 verified filters and navigation shipment
+
+[Run 38260963380](https://github.com/smile-plzz/Luma/actions/runs/38260963380), source `35103a06e88f85a2129ff7eb96bb6e65996f1185`: 67 core tests pass on each OS, four Windows integrations pass, and packaged native desktop smoke passes. `filters-navigation.txt` verifies non-everyday media visibility, filtered counts, chip removal, Reset and consolidated navigation; the script also opens Timeline and checks pinned Settings/Storage visibility. Existing gallery, offline, reconnect, memories and management checks pass. Light/dark screenshots were inspected. Merged through [PR #11](https://github.com/smile-plzz/Luma/pull/11). See TESTING_HANDOFF.md for the exact package and checksum.
+
 ## v0.2.0 verified management shipment
 
 [Run 38215576271](https://github.com/smile-plzz/Luma/actions/runs/38215576271), source `3119f225944b9362b21c8e97383ad33ce16de2d7`: 63 core tests pass on each OS, four Windows integrations pass and native desktop smoke passes. `management.txt` confirms source manager actions, removal cancellation and confirmation, updated album counts, all-source refresh, repair, rebuild, Activity and unused-preview cleanup. The package and compiled XAML resources passed publication checks; the screenshot was inspected. PR #10 is merged at `106dcb700b58a5ae663b0648b2dc58e83e2f3d53`. See TESTING_HANDOFF.md for the release and checksum.
@@ -79,7 +83,7 @@ Two additional core tests cover reopening saved sources across a fresh catalog i
 
 New automated cases exercise checkpoint reuse after restart/mount change, cancellation and disconnect without partial publication, completed-folder invalidation, checkpoint discard/removal, overlapping scanner exclusion, organization retention, offline capture-date memories, cursor traversal and filters, stale metadata and exact leap-day matching. The native desktop smoke now enters On this day with the source offline, verifies a previous-year capture fixture and excludes files without capture metadata. The successful run and downloadable artifact are recorded in TESTING_HANDOFF.md.
 
-On the physical bench, interrupt a large multi-folder import, close and reopen Luma, reconnect the HDD (including a new drive letter), and choose Resume indexing. Verify saved progress, stable albums/favorites and final totals. Repeat with a large flat folder. Check Indexing report for protected folders. Try another date in memories, then disconnect and verify prepared previews. Test the source's actual filesystem and camera-date conventions; synthetic CI cannot certify those.
+On the physical bench, interrupt a large multi-folder import, close and reopen Luma, reconnect the HDD (including a new drive letter), and choose **Activity → Resume paused indexing**. Verify saved progress, stable albums/favorites and final totals. Repeat with a large flat folder. Check Activity for protected-folder reports. Try another date in memories, then disconnect and verify prepared previews. Test the source's actual filesystem and camera-date conventions; synthetic CI cannot certify those.
 
 ## Library management follow-up
 

@@ -1,15 +1,15 @@
 # Luma
 
-**[Download Luma for Windows](https://github.com/smile-plzz/Luma/releases/latest/download/Luma-v0.2.0-win-x64.zip)** · [Release notes](https://github.com/smile-plzz/Luma/releases/latest)
+**[Download Luma for Windows](https://github.com/smile-plzz/Luma/releases/latest/download/Luma-v0.3.0-win-x64.zip)** · [Release notes](https://github.com/smile-plzz/Luma/releases/latest)
 
 A native Windows media library for existing folders and drives. Browse photos and videos, organize favorites and tags, and open originals in your default apps.
 
-Development of the portable gallery milestone is complete and merged into `main`. Luma is now in real-life testing and everyday-use evaluation; the current shipment includes the UI refinement, import-lock correction and cached-drive reconnect optimization from PRs #7 and #8, plus resumable indexing and On this day memories from PR #9. The v0.2.0 update adds visible source management, explicit refresh scopes, preview repair/rebuild, storage cleanup and Activity. Start with the [testing handoff](docs/TESTING_HANDOFF.md) for the verified shipment, setup and feedback checklist.
+Development of the portable gallery milestone is complete and merged into `main`. Luma is now in real-life testing and everyday-use evaluation; the current shipment includes the UI refinement, import-lock correction and cached-drive reconnect optimization from PRs #7 and #8, plus resumable indexing and On this day memories from PR #9. Source management, explicit refresh scopes, preview repair/rebuild, storage cleanup and Activity shipped in v0.2.0. The v0.3.0 update shows all supported formats by default, exposes removable filters and filtered counts, makes Reset complete, and simplifies navigation and maintenance. Start with the [testing handoff](docs/TESTING_HANDOFF.md) for the verified shipment, setup and feedback checklist.
 
 ## Run the Windows app
 
 1. Open the [verified Windows download](https://github.com/smile-plzz/Luma/releases/latest) in **Releases**.
-2. Download the **Luma-v0.2.0-win-x64.zip** under Assets. The automatically generated Source code archives do not contain the EXE.
+2. Download the **Luma-v0.3.0-win-x64.zip** under Assets. The automatically generated Source code archives do not contain the EXE.
 3. Extract the entire ZIP to a writable folder and run **Luma.App.exe**. Keep the bundled files beside the executable.
 4. Select **Add folder or drive**. Browse the indexed media; thumbnails are cached as you browse.
 
@@ -30,7 +30,7 @@ Windows 10 version 2004+ or Windows 11, x64. The portable build bundles .NET and
 - Cached subfolder navigation with parent navigation, available offline without rescanning older libraries.
 - Bulk offline preview preparation with cancellation/resume, coverage and cache usage, and confirmed cache clearing.
 - PC-local SQLite catalog and bounded persistent thumbnails. Cached hits do not probe an external drive.
-- Catalog-first reopening of known drives, in-place reconnect status, and visible-preview retry without a full scan. Use **Rescan sources** explicitly for new or changed files.
+- Catalog-first reopening of known drives, in-place reconnect status, and visible-preview retry without a full scan. Use **Refresh → Refresh all connected sources** explicitly for new or changed files.
 - Volume GUID/serial/folder identities that resolve a drive's current mount instead of trusting its old letter.
 - Light/dark/system themes and configurable cache limit (1–32 GiB, applied at restart).
 
@@ -50,7 +50,7 @@ Text inputs keep their normal editing shortcuts. Files on offline drives can be 
 
 ## Storage
 
-`%LOCALAPPDATA%\Luma` contains the catalog, settings and thumbnails on the PC. Original files stay on their source volumes. Default thumbnail limit: 2 GiB. Offline thumbnail retention depends on cache capacity. Use **Prepare offline previews** for the selected source (or all sources), then **Check offline coverage** before disconnecting. Preparation preserves existing thumbnails when space runs out; ordinary browsing still uses LRU eviction. Previews are not backups of originals.
+`%LOCALAPPDATA%\Luma` contains the catalog, settings and thumbnails on the PC. Original files stay on their source volumes. Default thumbnail limit: 2 GiB. Offline thumbnail retention depends on cache capacity. Open **Storage & previews**, choose the selected source (or all sources), and **Repair missing previews**. Check the coverage shown there before disconnecting. Preparation preserves existing thumbnails when space runs out; ordinary browsing still uses LRU eviction. Previews are not backups of originals.
 
 ## Build and test
 
@@ -69,4 +69,4 @@ Core tests also run on Linux. GitHub Actions builds the app, runs Windows integr
 
 ### Indexing recovery and memories
 
-Interrupted imports save progress on your PC. Use **Drive tools → Resume indexing** after reconnecting; **Restart selected indexing** starts fresh and **Indexing report** lists skipped folders. Your published gallery remains available while indexing finishes. **On this day** brings together matching capture dates from earlier years and works with saved offline previews. [Usage and limits](docs/GALLERY_BUILD.md#resumable-indexing).
+Interrupted imports save progress on your PC. Use **Activity → Resume paused indexing** after reconnecting; **Manage sources → More → Restart indexing** starts fresh and Activity lists skipped folders. Your published gallery remains available while indexing finishes. **On this day** brings together matching capture dates from earlier years and works with saved offline previews. [Usage and limits](docs/GALLERY_BUILD.md#resumable-indexing).
