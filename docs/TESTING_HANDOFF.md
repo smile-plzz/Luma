@@ -22,7 +22,7 @@ Shipment updated: 12 October 2026 (Asia/Dhaka). The portable gallery milestone i
 | --- | --- |
 | Platform | Windows 10 2004+ / Windows 11, x64 |
 | Package | Unsigned, self-contained portable ZIP; no installer |
-| Download | [Luma-Gallery-win-x64](https://github.com/smile-plzz/Luma/actions/runs/38168157835/artifacts/11713295027) |
+| Download | [Luma v0.1.0 Windows ZIP](https://github.com/smile-plzz/Luma/releases/download/v0.1.0/Luma-v0.1.0-win-x64.zip) |
 | Tested source | `ef23349e82723c98636f9e3a6acad5d7c210f135` |
 | Merge commit | `ab08a6c67faf894d09dce5a7a1feddd8b5a90d5e` |
 | Automated evidence | [Successful run 38168157835](https://github.com/smile-plzz/Luma/actions/runs/38168157835) |
@@ -31,7 +31,7 @@ Shipment updated: 12 October 2026 (Asia/Dhaka). The portable gallery milestone i
 
 58 core tests passed on Windows and Linux, four Windows integration tests passed, and the packaged app passed native desktop automation. The UI run covers continuous scrolling across 260 fixtures and back, recycled images, search, favorites, albums, folders, offline preparation/disconnection, view preferences after restart and theme switching. Light/dark screenshots were inspected. Native reconnect checks verified preserved selection/scroll and no automatic indexing of an added file. The offline memories smoke passed; core tests cover resume across restart/mount changes, checkpoint invalidation, cancellation, concurrent scanner exclusion, filtering and leap days. Catalog-only scale tests cover 1k/10k/100k records.
 
-GitHub may require sign-in to download an Actions artifact. This specific artifact is currently scheduled to expire on 9 January 2027; retain the downloaded ZIP. If unavailable, use a newer successful **Build and test** run on `main`, or run that workflow manually. Identify that newer run when reporting feedback. Executables and bundled runtime files are delivered as build artifacts; source, build automation, tests and documentation are versioned in Git.
+The versioned [v0.1.0 Release](https://github.com/smile-plzz/Luma/releases/tag/v0.1.0) contains the exact verified ZIP plus SHA256SUMS.txt. Release assets do not have the Actions artifact's automatic expiration. Source code archives are separate and do not contain the EXE. The release workflow verifies the successful source run and ZIP digest before publication. Source, build automation, release notes, tests and documentation remain versioned in Git; binaries are under Releases.
 
 ## First run and upgrade
 

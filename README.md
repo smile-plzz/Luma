@@ -1,13 +1,15 @@
 # Luma
 
+**[Download Luma for Windows](https://github.com/smile-plzz/Luma/releases/latest/download/Luma-v0.1.0-win-x64.zip)** · [Release notes](https://github.com/smile-plzz/Luma/releases/latest)
+
 A native Windows media library for existing folders and drives. Browse photos and videos, organize favorites and tags, and open originals in your default apps.
 
-Development of the portable gallery milestone is complete and merged into `main`. Luma is now in real-life testing and everyday-use evaluation; the current shipment includes the UI refinement, import-lock correction and cached-drive reconnect optimization from PRs #7 and #8. Start with the [testing handoff](docs/TESTING_HANDOFF.md) for the verified shipment, setup and feedback checklist.
+Development of the portable gallery milestone is complete and merged into `main`. Luma is now in real-life testing and everyday-use evaluation; the current shipment includes the UI refinement, import-lock correction and cached-drive reconnect optimization from PRs #7 and #8, plus resumable indexing and On this day memories from PR #9. Start with the [testing handoff](docs/TESTING_HANDOFF.md) for the verified shipment, setup and feedback checklist.
 
 ## Run the Windows app
 
-1. Open the [verified Windows download](https://github.com/smile-plzz/Luma/actions/runs/38168157835/artifacts/11713295027) (GitHub sign-in may be required).
-2. Download the **Luma-Gallery-win-x64** ZIP. This executable package is an Actions artifact; the repository files contain the source.
+1. Open the [verified Windows download](https://github.com/smile-plzz/Luma/releases/latest) in **Releases**.
+2. Download the **Luma-v0.1.0-win-x64.zip** under Assets. The automatically generated Source code archives do not contain the EXE.
 3. Extract the entire ZIP to a writable folder and run **Luma.App.exe**. Keep the bundled files beside the executable.
 4. Select **Add folder or drive**. Browse the indexed media; thumbnails are cached as you browse.
 
