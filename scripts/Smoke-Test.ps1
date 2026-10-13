@@ -7,7 +7,7 @@ Add-Type -AssemblyName System.Windows.Forms
 New-Item -ItemType Directory -Force artifacts/qa | Out-Null
 $exe = (Resolve-Path $Executable).Path
 $version=[System.Diagnostics.FileVersionInfo]::GetVersionInfo($exe)
-if ($version.ProductName -ne 'Luma' -or $version.FileVersion -ne '0.5.0.0' -or $version.FileDescription -ne 'Luma') { throw 'Executable branding/version metadata is incorrect.' }
+if ($version.ProductName -ne 'Luma' -or $version.FileVersion -ne '0.5.0.0' -or $version.FileDescription -ne 'Luma — Local media gallery') { throw 'Executable branding/version metadata is incorrect.' }
 if (!(Test-Path (Join-Path (Split-Path $exe) 'Assets/Luma.ico'))) { throw 'Window icon is missing.' }
 $icon=[System.Drawing.Icon]::ExtractAssociatedIcon($exe)
 if (!$icon) { throw 'Executable icon is missing.' }
