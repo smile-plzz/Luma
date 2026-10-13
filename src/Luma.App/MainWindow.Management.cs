@@ -11,6 +11,21 @@ public sealed partial class MainWindow
     private Button ActionButton(string text,Action action)
     {
         var button=new Button { Content=text,HorizontalAlignment=HorizontalAlignment.Left };
+        var help=text switch {
+            "Repair missing previews"=>"Create missing previews for this scope. Existing previews and originals are preserved.",
+            "Rebuild previews"=>"Regenerate previews. Keep existing previews when originals are offline or generation fails.",
+            "Clear selected previews"=>"Remove cached previews for the chosen scope after confirmation. Originals and organization remain.",
+            "Clean unused previews"=>"Remove orphaned previews across all sources after confirmation; previews retained for exclusions are kept.",
+            "Browse"=>"Open this source from its saved catalog, including while offline.",
+            "Remove from Luma"=>"Remove this source's library records and organization after confirmation. Originals remain untouched.",
+            "Restore"=>"Remove this exclusion and reveal already cataloged media. Refresh later to discover skipped files.",
+            "Exclude file type"=>"Exclude the entered extension across every source after confirmation.",
+            "Exclude selected source"=>"Hide the selected registered source and skip its scans until restored.",
+            "Exclude a folder…"=>"Choose a folder inside a registered source to exclude along with its subfolders.",
+            "Pause current work"=>"Request a safe pause. Saved scan checkpoints and completed metadata batches are retained.",
+            "Resume paused indexing"=>"Continue saved discovery checkpoints on connected sources.",
+            _=>null };
+        if(help is not null) { ToolTipService.SetToolTip(button,help); Microsoft.UI.Xaml.Automation.AutomationProperties.SetHelpText(button,help); }
         button.Click+=(_,_)=>action(); return button;
     }
     private async Task RefreshSources(string? id)

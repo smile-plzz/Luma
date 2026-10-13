@@ -58,6 +58,7 @@ public sealed partial class MainWindow
             ImportFeedback("metadata","Reading dates · Preparing", "Counting changed files. Saved media remains available.");
             var details=MetadataFeedback(source ?? "All sources","Metadata");
             var count=await Task.Run(()=>catalog.EnrichAsync(new WindowsMetadataReader(),source,scanCancellation.Token,details:details));
+            Status.Text=$"Date reading complete · {count:N0} updates saved";
             Notify($"Metadata refreshed for {count:N0} changed files. Unsupported dates use modification time.");
         }
         finally { scanning=false; EndImportFeedback(); workClock.Stop(); workTimer.Stop(); WorkElapsed.Text=""; Busy.IsActive=false; CancelButton.Visibility=Visibility.Collapsed; if(ready)await Refresh(); }

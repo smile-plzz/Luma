@@ -1,4 +1,5 @@
 <Window x:Class="Luma.App.MainWindow" xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation" xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml" Title="Luma">
+ <ContentControl x:Name="ViewHost" HorizontalContentAlignment="Stretch" VerticalContentAlignment="Stretch">
  <Grid x:Name="Root" Background="{ThemeResource LumaCanvas}" Loaded="OnLoaded">
   <Grid.Resources>
    <ResourceDictionary>
@@ -93,4 +94,5 @@
    <Grid Grid.Row="5"><Grid.ColumnDefinitions><ColumnDefinition Width="*"/><ColumnDefinition Width="Auto"/></Grid.ColumnDefinitions><StackPanel Spacing="4"><ProgressBar x:Name="ImportProgress" AutomationProperties.AutomationId="ImportProgress" AutomationProperties.Name="Import phase progress" Height="3" Width="240" HorizontalAlignment="Left" Visibility="Collapsed"/><StackPanel Orientation="Horizontal" Spacing="8"><ProgressRing x:Name="Busy" Width="16" Height="16" IsActive="False"/><TextBlock x:Name="WorkElapsed" FontSize="11" Opacity="0.6" VerticalAlignment="Center"/><TextBlock x:Name="Status" Text="Opening library…" Opacity="0.6" FontSize="11" VerticalAlignment="Center" MaxWidth="380" TextTrimming="CharacterEllipsis"/></StackPanel></StackPanel><StackPanel Grid.Column="1" Orientation="Horizontal" Spacing="8"><Button Content="Activity" Click="ShowActivity" ToolTipService.ToolTip="See full progress, elapsed time, source and folder details, pause controls and recent results." AutomationProperties.HelpText="See full progress, elapsed time, source and folder details, pause controls and recent results."/><Button x:Name="CancelButton" Content="Pause" Click="CancelScan" Visibility="Collapsed" ToolTipService.ToolTip="Request a safe pause. Discovery keeps checkpoints; date reading keeps completed batches." AutomationProperties.HelpText="Request a safe pause. Discovery keeps checkpoints; date reading keeps completed batches."/></StackPanel></Grid>
   </Grid>
  </Grid>
+ </ContentControl>
 </Window>

@@ -37,7 +37,7 @@ public sealed partial class MainWindow
     {
         var place=settings.RememberPlace ? settings.Place : null;
         if(place is null) {ready=true;await Refresh();return;}
-        restoringPlace=true;Root.IsEnabled=false;
+        restoringPlace=true;ViewHost.IsEnabled=false;
         string message="Welcome back. Your last view is restored.";
         try
         {
@@ -65,7 +65,7 @@ public sealed partial class MainWindow
             if(anchor is not null)await PositionAnchor(anchor,double.IsFinite(place.Inset) ? Math.Clamp(place.Inset,-1000,1000) : 0);
             Notify(message);
         }
-        finally {restoringPlace=false;Root.IsEnabled=true;ready=true;SchedulePlaceSave();}
+        finally {restoringPlace=false;ViewHost.IsEnabled=true;ready=true;SchedulePlaceSave();}
     }
     private async Task PositionAnchor(MediaCard anchor,double inset)
     {
@@ -87,7 +87,7 @@ public sealed partial class MainWindow
     private async void EarlierItems(object sender,RoutedEventArgs e)=>await Guard(async ()=>
     {
         if(loadedStart==0 || loading || activeQuery is null)return;
-        restoringPlace=true;Root.IsEnabled=false;
+        restoringPlace=true;ViewHost.IsEnabled=false;
         try
         {
             var anchor=VisibleAnchor(); var start=Math.Max(0,loadedStart-120);
@@ -103,7 +103,7 @@ public sealed partial class MainWindow
             if(anchor.Card is not null)await PositionAnchor(anchor.Card,anchor.Inset);
             Notify($"Loaded {page.Items.Count:N0} earlier items. Your position is preserved.");
         }
-        finally {restoringPlace=false;Root.IsEnabled=true;SchedulePlaceSave();}
+        finally {restoringPlace=false;ViewHost.IsEnabled=true;SchedulePlaceSave();}
     });
     private async void BackToStart(object sender,RoutedEventArgs e)=>await Guard(Refresh);
 }
