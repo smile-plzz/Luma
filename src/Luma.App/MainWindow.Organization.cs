@@ -15,7 +15,7 @@ public sealed partial class MainWindow
         AlbumsBox.ItemsSource=albums; AlbumsBox.SelectedItem=albums.FirstOrDefault(a=>a.Id==id); ready=r;
     }
     private async void AlbumChanged(object sender,SelectionChangedEventArgs e)
-    { if(!ready)return; Heading.Text=IsMemories ? "On this day" : (AlbumsBox.SelectedItem as Album)?.Name ?? "Library"; ClearDateRange(); await Guard(Refresh); }
+    { if(!ready || restoringPlace)return; Heading.Text=IsMemories ? "On this day" : (AlbumsBox.SelectedItem as Album)?.Name ?? "Library"; ClearDateRange(); await Guard(Refresh); }
     private async void LeaveAlbum(object sender,RoutedEventArgs e) { AlbumsBox.SelectedItem=null; await Guard(Refresh); }
     private async void NewAlbum(object sender,RoutedEventArgs e) => await Guard(async () =>
     {

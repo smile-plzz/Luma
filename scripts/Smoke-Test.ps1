@@ -425,6 +425,9 @@ try {
     (Wait-Control 'Browse month').GetCurrentPattern([System.Windows.Automation.ExpandCollapsePattern]::Pattern).Expand()
     (Wait-Control 'September 2026 · 1').GetCurrentPattern([System.Windows.Automation.SelectionItemPattern]::Pattern).Select()
     Start-Sleep -Seconds 2
+    $beforeRestart=Get-Content (Join-Path $smokeRoot 'settings.json') -Raw | ConvertFrom-Json
+    if ($beforeRestart.Place.Month -ne '2026-09') { throw 'Month was not saved before restart.' }
+    Copy-Item (Join-Path $smokeRoot 'settings.json') artifacts/qa/before-offline-restart.json
     Restart-App -DisconnectFixture
     Wait-Control 'fixture007.bmp' | Out-Null
     if ((Wait-Control 'Folder path').GetCurrentPattern([System.Windows.Automation.ValuePattern]::Pattern).Current.Value -ne 'Trips') { throw 'Folder did not survive restart.' }
@@ -473,6 +476,7 @@ try {
             $bmp.Save((Join-Path (Get-Location) 'artifacts/qa/failure.png')); $g.Dispose(); $bmp.Dispose()
         }
     }
+    if (Test-Path (Join-Path $smokeRoot "settings.json")) { Copy-Item (Join-Path $smokeRoot "settings.json") artifacts/qa/failure-settings.json }
     if (Test-Path (Join-Path $smokeRoot "last-error.txt")) { Copy-Item (Join-Path $smokeRoot "last-error.txt") artifacts/qa/last-error.txt }
     $log = Join-Path (Split-Path $exe) 'startup-error.txt'
     if (Test-Path $log) { Get-Content $log; Copy-Item $log artifacts/qa/startup-error.txt }

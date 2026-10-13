@@ -197,7 +197,7 @@ public sealed partial class MainWindow
     }
     private async void NavigationChanged(object sender,SelectionChangedEventArgs e)
     {
-        if(!ready) return; Heading.Text=Navigation.SelectedItem?.ToString() ?? "Library";
+        if(!ready || restoringPlace) return; Heading.Text=Navigation.SelectedItem?.ToString() ?? "Library";
         ready=false;
         MemoryDate.Visibility = IsMemories ? Visibility.Visible : Visibility.Collapsed;
         if (IsMemories) { MemoryDate.MaxDate=DateTimeOffset.Now; MemoryDate.Date=DateTimeOffset.Now; settings.GroupIndex=1; GroupBox.SelectedIndex=1; settings.Descending=true; DescendingButton.IsChecked=true; }
@@ -210,12 +210,12 @@ public sealed partial class MainWindow
     }
     private async void MemoryDateChanged(CalendarDatePicker sender, CalendarDatePickerDateChangedEventArgs args)
     {
-        if(!ready || !IsMemories) return;
+        if(!ready || restoringPlace || !IsMemories) return;
         ClearDateRange(); await Guard(Refresh);
     }
     private async void FilterChanged(object sender,SelectionChangedEventArgs e)
     {
-        if(!ready) return;
+        if(!ready || restoringPlace) return;
         if(ReferenceEquals(sender,Sources)) FolderFilter.Text="";
         settings.SortIndex=Math.Max(0,SortBox.SelectedIndex);
         if(settings.SortIndex==1) { settings.Descending=false; DescendingButton.IsChecked=false; }
@@ -223,13 +223,13 @@ public sealed partial class MainWindow
     }
     private async void SearchChanged(object sender,TextChangedEventArgs e)
     {
-        if(!ready) return; searchCancellation?.Cancel(); var cts=new CancellationTokenSource(); searchCancellation=cts;
+        if(!ready || restoringPlace) return; searchCancellation?.Cancel(); var cts=new CancellationTokenSource(); searchCancellation=cts;
         try { await Task.Delay(300,cts.Token); ClearDateRange(); await Guard(Refresh); } catch(OperationCanceledException) { }
     }
     private async void DirectionChanged(object sender,RoutedEventArgs e)
-    { if(!ready)return; settings.Descending=DescendingButton.IsChecked==true; settings.Save(); await Guard(Refresh); }
+    { if(!ready || restoringPlace)return; settings.Descending=DescendingButton.IsChecked==true; settings.Save(); await Guard(Refresh); }
     private async void GroupChanged(object sender,SelectionChangedEventArgs e)
-    { if(!ready)return; settings.GroupIndex=Math.Max(0,GroupBox.SelectedIndex); settings.Save(); await Guard(Refresh); }
+    { if(!ready || restoringPlace)return; settings.GroupIndex=Math.Max(0,GroupBox.SelectedIndex); settings.Save(); await Guard(Refresh); }
     private void ThumbnailSizeChanged(object sender,RangeBaseValueChangedEventArgs e)
     { if(!ready)return; settings.ThumbnailSize=(int)e.NewValue; UpdateAppearance(); }
     private void AppearanceChanged(object sender,RoutedEventArgs e)
@@ -244,15 +244,16 @@ public sealed partial class MainWindow
         if(anchor is not null) MediaGrid.ScrollIntoView(anchor,ScrollIntoViewAlignment.Leading);
     }
     private async void ContentFilterChanged(object sender,RoutedEventArgs e)
-    { if(!ready)return; settings.CommonOnly=CommonToggle.IsChecked==true; settings.IncludeDescendants=RecursiveToggle.IsChecked==true; settings.Save(); await Guard(Refresh); }
+    { if(!ready || restoringPlace)return; settings.CommonOnly=CommonToggle.IsChecked==true; settings.IncludeDescendants=RecursiveToggle.IsChecked==true; settings.Save(); await Guard(Refresh); }
     private void ClearDateRange() { beforeTicks=null; fromTicks=null; selectedMonth=null; }
     private async void JumpDate(object sender,SelectionChangedEventArgs e)
     {
-        if(!ready || DateJump.SelectedItem is not MonthBucket month)return;
+        if(!ready || restoringPlace || DateJump.SelectedItem is not MonthBucket month)return;
         await ChooseMonth(month);
     }
     private async Task ChooseMonth(MonthBucket month)
     {
+        searchCancellation?.Cancel();
         var date=DateTime.ParseExact(month.Month+"-01","yyyy-MM-dd",System.Globalization.CultureInfo.InvariantCulture);
         SetMonth(date);
         await Guard(()=>RefreshGallery(true));
