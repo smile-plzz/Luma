@@ -31,6 +31,8 @@ public sealed class ScaleTests
             timer.Restart(); var months=await catalog.MonthsAsync(new(Sort:MediaSort.Captured)); var monthsMs=timer.Elapsed.TotalMilliseconds;
             Assert.Equal(count,first.Total); Assert.Equal(120,first.Items.Count); Assert.Equal(120,second.Items.Count);
             Assert.Empty(first.Items.Select(x=>x.Id).Intersect(second.Items.Select(x=>x.Id))); Assert.NotEmpty(months);
+            timer.Restart(); var anchorPosition=await catalog.LocateAsync(new(Sort:MediaSort.Captured),"fixture",$"photo{count/2:000000}.jpg"); var restoreLocateMs=timer.Elapsed.TotalMilliseconds;
+            Assert.Equal(count-count/2,anchorPosition);
             double baselineSortMs;
             await using(var db=new SqliteConnection(new SqliteConnectionStringBuilder{DataSource=path}.ToString()))
             {
@@ -41,7 +43,7 @@ public sealed class ScaleTests
                 timer.Restart(); await using(var reader=await cmd.ExecuteReaderAsync()) {while(await reader.ReadAsync()) { }} baselineSortMs=timer.Elapsed.TotalMilliseconds;
             }
             var directory=Path.Combine(AppContext.BaseDirectory,"benchmarks"); Directory.CreateDirectory(directory);
-            await File.WriteAllTextAsync(Path.Combine(directory,$"catalog-{count}.json"),JsonSerializer.Serialize(new { Count=count,FirstBatchMs=firstMs,PreviousCaptureSortOnlyMs=baselineSortMs,NextBatchMs=nextMs,MonthIndexMs=monthsMs,Environment=System.Runtime.InteropServices.RuntimeInformation.OSDescription,Processors=Environment.ProcessorCount,Scope="SQLite metadata/query only; not image decoding or USB hardware" },new JsonSerializerOptions{WriteIndented=true}));
+            await File.WriteAllTextAsync(Path.Combine(directory,$"catalog-{count}.json"),JsonSerializer.Serialize(new { Count=count,FirstBatchMs=firstMs,PreviousCaptureSortOnlyMs=baselineSortMs,NextBatchMs=nextMs,MonthIndexMs=monthsMs,RestoreLocateMs=restoreLocateMs,Environment=System.Runtime.InteropServices.RuntimeInformation.OSDescription,Processors=Environment.ProcessorCount,Scope="SQLite metadata/query only; not image decoding or USB hardware" },new JsonSerializerOptions{WriteIndented=true}));
         }
         finally { SqliteConnection.ClearAllPools(); Directory.Delete(root,true); }
     }

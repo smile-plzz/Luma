@@ -56,7 +56,8 @@ public sealed partial class MainWindow
             int offset=0;
             if(place.AnchorSource is not null && place.AnchorPath is not null)
             {
-                var position=await Task.Run(()=>catalog.LocateAsync(CurrentQuery(),place.AnchorSource,place.AnchorPath));
+                var query=CurrentQuery();
+                var position=await Task.Run(()=>catalog.LocateAsync(query,place.AnchorSource,place.AnchorPath));
                 if(position is int found)offset=Math.Max(0,found-60);
                 else message="Your previous item is no longer in this view. Showing the first available items.";
             }

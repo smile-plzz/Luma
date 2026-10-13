@@ -419,7 +419,9 @@ try {
     $sourceItem.GetCurrentPattern([System.Windows.Automation.SelectionItemPattern]::Pattern).Select()
     $folder=Wait-Control 'Trips';$pattern=$null
     while($folder -and !$folder.TryGetCurrentPattern([System.Windows.Automation.SelectionItemPattern]::Pattern,[ref]$pattern)) { $folder=[System.Windows.Automation.TreeWalker]::ControlViewWalker.GetParent($folder) }
-    $pattern.Select(); Wait-Control 'fixture007.bmp' | Out-Null
+    $pattern.Select(); Wait-Control '1 of 261 items · Filtered' | Out-Null
+    Start-Sleep -Seconds 1
+    Wait-Control 'fixture007.bmp' | Out-Null
     (Wait-Control 'Browse month').GetCurrentPattern([System.Windows.Automation.ExpandCollapsePattern]::Pattern).Expand()
     (Wait-Control 'September 2026 · 1').GetCurrentPattern([System.Windows.Automation.SelectionItemPattern]::Pattern).Select()
     Start-Sleep -Seconds 2
@@ -471,6 +473,7 @@ try {
             $bmp.Save((Join-Path (Get-Location) 'artifacts/qa/failure.png')); $g.Dispose(); $bmp.Dispose()
         }
     }
+    if (Test-Path (Join-Path $smokeRoot "last-error.txt")) { Copy-Item (Join-Path $smokeRoot "last-error.txt") artifacts/qa/last-error.txt }
     $log = Join-Path (Split-Path $exe) 'startup-error.txt'
     if (Test-Path $log) { Get-Content $log; Copy-Item $log artifacts/qa/startup-error.txt }
     Get-WinEvent -FilterHashtable @{LogName='Application'; StartTime=(Get-Date).AddMinutes(-5)} -ErrorAction SilentlyContinue |

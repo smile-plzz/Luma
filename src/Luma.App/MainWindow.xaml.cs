@@ -110,7 +110,12 @@ public sealed partial class MainWindow : Window
         if (exclusive) operation = true;
         try { await action(); }
         catch (OperationCanceledException) { Status.Text = "Paused · saved library intact"; }
-        catch (Exception ex) { Notify(ex.Message, true); Status.Text = "Action could not be completed."; }
+        catch (Exception ex)
+        {
+            try {Directory.CreateDirectory(AppSettings.LocalRoot);File.WriteAllText(Path.Combine(AppSettings.LocalRoot,"last-error.txt"),DateTime.Now+"\n"+ex);} catch(IOException) { } catch(UnauthorizedAccessException) { }
+            Notify(string.IsNullOrWhiteSpace(ex.Message) ? "This action could not finish. Try again; diagnostic details are saved in Luma’s local data folder (last-error.txt)." : ex.Message, true);
+            Status.Text = "Action could not be completed.";
+        }
         finally { if (exclusive) operation = false; }
     }
     private void Notify(string text, bool error = false)
