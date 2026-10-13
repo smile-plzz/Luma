@@ -11,10 +11,17 @@ public sealed record SourceInfo(string Id, string RootPath, DateTime LastSeenUtc
 public sealed partial class MediaCache(string databasePath, ISourceResolver? sourceResolver = null)
 {
     private readonly string connectionString = new SqliteConnectionStringBuilder { DataSource = databasePath }.ToString();
+    private SqliteConnection CreateConnection()
+    {
+        var db = new SqliteConnection(connectionString);
+        // SQLite's built-in NOCASE only handles ASCII. Windows folder names need Unicode comparison.
+        db.CreateCollation("LUMA_PATH", (a,b) => StringComparer.OrdinalIgnoreCase.Compare(a,b));
+        return db;
+    }
     public async Task InitializeAsync(CancellationToken ct = default)
     {
         Directory.CreateDirectory(Path.GetDirectoryName(Path.GetFullPath(databasePath))!);
-        await using var db = new SqliteConnection(connectionString);
+        await using var db = CreateConnection();
         await db.OpenAsync(ct);
         await using var cmd = db.CreateCommand();
         cmd.CommandText = """
@@ -31,6 +38,7 @@ public sealed partial class MediaCache(string databasePath, ISourceResolver? sou
                 favorite INTEGER NOT NULL DEFAULT 0, tags TEXT NOT NULL DEFAULT '', PRIMARY KEY(source_id,relative_path));
             """;
         await cmd.ExecuteNonQueryAsync(ct);
+        cmd.CommandText = ExclusionSchema; await cmd.ExecuteNonQueryAsync(ct);
         cmd.CommandText = ScanSchema; await cmd.ExecuteNonQueryAsync(ct);
         cmd.CommandText = OrganizationSchema; await cmd.ExecuteNonQueryAsync(ct);
         await using var migration = db.BeginTransaction();
@@ -40,10 +48,10 @@ public sealed partial class MediaCache(string databasePath, ISourceResolver? sou
 
     public async Task<IReadOnlyList<CachedMedia>> ListAsync(string sourceId, CancellationToken ct = default)
     {
-        await using var db = new SqliteConnection(connectionString);
+        await using var db = CreateConnection();
         await db.OpenAsync(ct);
         await using var cmd = db.CreateCommand();
-        cmd.CommandText = "SELECT relative_path,length,modified_ticks,kind FROM media WHERE source_id=$id ORDER BY relative_path";
+        cmd.CommandText = "SELECT relative_path,length,modified_ticks,kind FROM media m WHERE source_id=$id AND " + AllowedMediaSql + " ORDER BY relative_path";
         cmd.Parameters.AddWithValue("$id", sourceId);
         var result = new List<CachedMedia>();
         var root = sourceResolver?.ResolveRoot(sourceId);

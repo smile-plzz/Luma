@@ -25,3 +25,7 @@ Implemented persistent indexing checkpoints with resume/restart/report controls 
 ## Library management refinement
 
 User-confirmed real-machine functionality led to a discoverability-focused follow-up: Manage sources, explicit refresh scopes, Storage & previews, safe rebuild/repair, unused-preview cleanup and Activity. Browsing-position restoration and catalog backup/restore remain subsequent work; they are not included in this maintenance release.
+
+## Exclusions and packaging update
+
+Reversible folder, source and global extension rules now filter browsing and future scans. Use Settings or Refresh → Manage exclusions to restore them; Reset does not remove rules. Originals and saved organization are retained. Changing rules invalidates affected paused traversal checkpoints, not the published catalog. See [usage and limits](EXCLUSIONS.md) and [executable branding](BRANDING.md).

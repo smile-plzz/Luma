@@ -18,7 +18,7 @@ public sealed partial class MediaCache
 {
     public async Task<IReadOnlyList<SourceInfo>> SourcesAsync(CancellationToken ct = default)
     {
-        await using var db = new SqliteConnection(connectionString); await db.OpenAsync(ct);
+        await using var db = CreateConnection(); await db.OpenAsync(ct);
         await using var cmd = db.CreateCommand(); cmd.CommandText = "SELECT id,root_path,last_seen FROM sources ORDER BY root_path";
         var list = new List<SourceInfo>(); await using var reader = await cmd.ExecuteReaderAsync(ct);
         while (await reader.ReadAsync(ct))
@@ -47,7 +47,7 @@ public sealed partial class MediaCache
           OR lower(m.relative_path) GLOB '*.png' OR lower(m.relative_path) GLOB '*.heic' OR lower(m.relative_path) GLOB '*.heif'
           OR lower(m.relative_path) GLOB '*.mp4' OR lower(m.relative_path) GLOB '*.mov' OR lower(m.relative_path) GLOB '*.gif'
           OR lower(m.relative_path) GLOB '*.webp' OR lower(m.relative_path) GLOB '*.bmp')
-        """;
+        """ + " AND " + AllowedMediaSql;
 
     private static string OrderValue(MediaSort sort) => sort switch
     {
@@ -86,7 +86,7 @@ public sealed partial class MediaCache
     public async Task<LibraryPage> QueryAsync(LibraryQuery query, CancellationToken ct = default)
     {
         if (query.Offset < 0 || query.Limit is < 1 or > 500) throw new ArgumentOutOfRangeException(nameof(query));
-        await using var db = new SqliteConnection(connectionString); await db.OpenAsync(ct);
+        await using var db = CreateConnection(); await db.OpenAsync(ct);
         db.CreateFunction<string,string>("luma_extension",path => Path.GetExtension(path).ToLowerInvariant(),isDeterministic:true);
         // A gallery read must not reserve SQLite's single writer slot. WAL lets
         // this deferred, SELECT-only snapshot coexist with a long-running scan.
@@ -109,7 +109,7 @@ public sealed partial class MediaCache
         }
         var simpleCount=query.Search.Trim().Length==0 && !query.FavoritesOnly && query.MemoriesOn is null && query.AlbumId is null
             && !query.CommonOnly && query.Folder.Length==0 && query.IncludeDescendants && query.BeforeTicks is null && query.FromTicks is null;
-        cmd.CommandText = simpleCount ? "SELECT COUNT(*) FROM media m WHERE ($source IS NULL OR m.source_id=$source) AND ($kind IS NULL OR m.kind=$kind)" : "SELECT COUNT(*) " + from;
+        cmd.CommandText = simpleCount ? "SELECT COUNT(*) FROM media m WHERE ($source IS NULL OR m.source_id=$source) AND ($kind IS NULL OR m.kind=$kind) AND " + AllowedMediaSql : "SELECT COUNT(*) " + from;
         var total = query.KnownTotal ?? Convert.ToInt64(await cmd.ExecuteScalarAsync(ct));
         if (query.Cursor is not null)
         {
@@ -138,7 +138,7 @@ public sealed partial class MediaCache
     // Month navigation describes the filtered collection, before a month/date range is applied.
     public async Task<IReadOnlyList<MonthBucket>> MonthBucketsAsync(LibraryQuery query, CancellationToken ct = default)
     {
-        await using var db = new SqliteConnection(connectionString); await db.OpenAsync(ct);
+        await using var db = CreateConnection(); await db.OpenAsync(ct);
         await using var cmd = db.CreateCommand(); QueryParameters(cmd,query);
         var date = query.Sort == MediaSort.Captured ? OrderValue(MediaSort.Captured) : "m.modified_ticks";
         cmd.CommandText = "SELECT strftime('%Y-%m',(" + date + "-621355968000000000)/10000000,'unixepoch','localtime'),COUNT(*) " + QueryFrom(query) + " GROUP BY 1 ORDER BY 1 DESC";
@@ -152,7 +152,7 @@ public sealed partial class MediaCache
         tags = string.Join(", ", tags.Split(',', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries)
             .Distinct(StringComparer.OrdinalIgnoreCase));
         if (tags.Length > 1000) throw new ArgumentException("Keep tags under 1,000 characters.", nameof(tags));
-        await using var db = new SqliteConnection(connectionString); await db.OpenAsync(ct);
+        await using var db = CreateConnection(); await db.OpenAsync(ct);
         await using var cmd = db.CreateCommand();
         cmd.CommandText = "INSERT INTO annotations VALUES($id,$path,$favorite,$tags) ON CONFLICT(source_id,relative_path) DO UPDATE SET favorite=$favorite,tags=$tags";
         cmd.Parameters.AddWithValue("$id", media.SourceId); cmd.Parameters.AddWithValue("$path", media.RelativePath);
@@ -163,10 +163,10 @@ public sealed partial class MediaCache
     public async Task RemoveSourceAsync(string id, CancellationToken ct = default)
     {
         using var lease = IndexingLease();
-        await using var db = new SqliteConnection(connectionString); await db.OpenAsync(ct);
+        await using var db = CreateConnection(); await db.OpenAsync(ct);
         await using var transaction = (SqliteTransaction)await db.BeginTransactionAsync(ct);
         await using var cmd = db.CreateCommand(); cmd.Transaction = transaction;
-        cmd.CommandText = "DELETE FROM scan_warnings WHERE source_id=$id; DELETE FROM scan_media WHERE source_id=$id; DELETE FROM scan_folders WHERE source_id=$id; DELETE FROM scan_jobs WHERE source_id=$id; DELETE FROM album_items WHERE media_id IN(SELECT id FROM media_ids WHERE source_id=$id); DELETE FROM media_ids WHERE source_id=$id; DELETE FROM metadata WHERE source_id=$id; DELETE FROM source_labels WHERE source_id=$id; DELETE FROM annotations WHERE source_id=$id; DELETE FROM media WHERE source_id=$id; DELETE FROM sources WHERE id=$id;";
+        cmd.CommandText = "DELETE FROM exclusions WHERE source_id=$id; DELETE FROM scan_warnings WHERE source_id=$id; DELETE FROM scan_media WHERE source_id=$id; DELETE FROM scan_folders WHERE source_id=$id; DELETE FROM scan_jobs WHERE source_id=$id; DELETE FROM album_items WHERE media_id IN(SELECT id FROM media_ids WHERE source_id=$id); DELETE FROM media_ids WHERE source_id=$id; DELETE FROM metadata WHERE source_id=$id; DELETE FROM source_labels WHERE source_id=$id; DELETE FROM annotations WHERE source_id=$id; DELETE FROM media WHERE source_id=$id; DELETE FROM sources WHERE id=$id;";
         cmd.Parameters.AddWithValue("$id", id); await cmd.ExecuteNonQueryAsync(ct); await transaction.CommitAsync(ct);
     }
 }

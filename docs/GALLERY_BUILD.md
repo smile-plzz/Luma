@@ -147,3 +147,7 @@ Indexing uses prepared batch inserts, a pending-folder index and one running che
 Tiles cancel outstanding thumbnail requests when recycled; visible tiles get priority over stale queued work. Decoded images remain tied to realized tiles. Scan feedback separates finding media from reading dates and shows elapsed time. The library is available after file discovery while dates are read. Pausing date reading keeps committed metadata; continue with Manage sources → More → Refresh metadata. There is no estimated completion time because codec and drive costs vary.
 
 The scale benchmark now includes 200,000 catalog records and records first-page, continuation, month-breakdown and previous capture-sort timings. These are database measurements, not a claim about 200,000 real images, USB throughput or UI frame rate. Lightweight loaded records still accumulate in an unrestricted continuous scroll; month filtering is the bounded browsing path for large collections.
+
+## Exclusions and packaging update
+
+Reversible folder, source and global extension rules now filter browsing and future scans. Use Settings or Refresh → Manage exclusions to restore them; Reset does not remove rules. Originals and saved organization are retained. Changing rules invalidates affected paused traversal checkpoints, not the published catalog. See [usage and limits](EXCLUSIONS.md) and [executable branding](BRANDING.md).

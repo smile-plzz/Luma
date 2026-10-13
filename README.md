@@ -17,6 +17,9 @@ Windows 10 version 2004+ or Windows 11, x64. The portable build bundles .NET and
 
 ## What works
 
+- **Library exclusions**: right-click to hide a folder, whole source or file extension, skip it during scans, and restore it without losing organization. [Exclusion guide](docs/EXCLUSIONS.md).
+- Original app icon and Windows executable branding. [Identity and icon source](docs/BRANDING.md).
+
 - **Manage sources**: browse, rename, refresh/resume or remove a source without deleting original files.
 - **Refresh** menu: current source, all connected sources, or status-only checks.
 - **Storage & previews**: scoped coverage, missing-preview repair, safe rebuild, clearing and confirmed unused-preview cleanup.

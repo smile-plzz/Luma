@@ -19,7 +19,7 @@ public sealed partial class MediaCache
 
     public async Task<IReadOnlyList<IndexingCheckpoint>> IndexingCheckpointsAsync(CancellationToken ct = default)
     {
-        await using var db = new SqliteConnection(connectionString); await db.OpenAsync(ct);
+        await using var db = CreateConnection(); await db.OpenAsync(ct);
         await using var cmd = db.CreateCommand();
         cmd.CommandText = "SELECT source_id,(SELECT COUNT(*) FROM scan_media m WHERE m.source_id=j.source_id),(SELECT COUNT(*) FROM scan_folders f WHERE f.source_id=j.source_id AND done=1) FROM scan_jobs j";
         var result = new List<IndexingCheckpoint>(); await using var reader = await cmd.ExecuteReaderAsync(ct);
@@ -29,7 +29,7 @@ public sealed partial class MediaCache
 
     public async Task<IReadOnlyList<IndexingWarning>> IndexingWarningsAsync(CancellationToken ct = default)
     {
-        await using var db=new SqliteConnection(connectionString); await db.OpenAsync(ct);
+        await using var db=CreateConnection(); await db.OpenAsync(ct);
         await using var cmd=db.CreateCommand(); cmd.CommandText="SELECT source_id,folder,message FROM scan_warnings ORDER BY source_id,folder";
         var result=new List<IndexingWarning>(); await using var reader=await cmd.ExecuteReaderAsync(ct);
         while(await reader.ReadAsync(ct)) result.Add(new(reader.GetString(0),reader.GetString(1),reader.GetString(2)));
@@ -52,6 +52,8 @@ public sealed partial class MediaCache
         if (string.IsNullOrWhiteSpace(sourceId)) throw new ArgumentException("Source ID required",nameof(sourceId));
         ct.ThrowIfCancellationRequested();
         using var lease = IndexingLease();
+        var exclusions=await ExclusionsAsync(ct);
+        if(exclusions.Any(e=>e.Kind=="source" && e.SourceId==sourceId))return 0;
         if (sourceResolver is not null) root = sourceResolver.ResolveRoot(sourceId) ?? throw new IOException("Source is offline or its identity has changed.");
         root = Path.GetFullPath(root);
         void VerifySource()
@@ -62,7 +64,7 @@ public sealed partial class MediaCache
                 throw new IOException("Indexing paused: reconnect the same drive and choose Resume indexing.");
         }
         VerifySource();
-        await using var db = new SqliteConnection(connectionString); await db.OpenAsync(ct);
+        await using var db = CreateConnection(); await db.OpenAsync(ct);
         async Task<long> Sql(string sql, SqliteTransaction? tx = null, params (string Name, object Value)[] values)
         {
             await using var cmd = db.CreateCommand(); cmd.Transaction=tx; cmd.CommandText=sql;
@@ -142,6 +144,7 @@ public sealed partial class MediaCache
             foreach(var info in new DirectoryInfo(directory).EnumerateFiles())
             {
                 ct.ThrowIfCancellationRequested();
+                if(exclusions.Any(e=>e.Matches(sourceId,Path.GetRelativePath(root,info.FullName))))continue;
                 if(!Extensions.Contains(info.Extension) || savedPaths.Contains(Path.GetRelativePath(root,info.FullName))) continue;
                 if(info.Attributes.HasFlag(FileAttributes.ReparsePoint)) continue;
                 batch.Add(info);
@@ -154,7 +157,7 @@ public sealed partial class MediaCache
                 foreach(var sub in Directory.EnumerateDirectories(directory))
                 {
                     ct.ThrowIfCancellationRequested();
-                    if(!new DirectoryInfo(sub).Attributes.HasFlag(FileAttributes.ReparsePoint))
+                    if(!exclusions.Any(e=>e.Kind!="type" && e.Matches(sourceId,Path.GetRelativePath(root,sub))) && !new DirectoryInfo(sub).Attributes.HasFlag(FileAttributes.ReparsePoint))
                         await Sql("INSERT OR IGNORE INTO scan_folders(source_id,path) VALUES($id,$path)",tx,("$path",Path.GetRelativePath(root,sub)));
                 }
                 if(Directory.GetLastWriteTimeUtc(directory).Ticks != stamp)
@@ -178,10 +181,10 @@ public sealed partial class MediaCache
             await Sql("""
                 INSERT INTO media SELECT source_id,relative_path,length,modified_ticks,kind FROM scan_media WHERE source_id=$id
                 ON CONFLICT(source_id,relative_path) DO UPDATE SET length=excluded.length,modified_ticks=excluded.modified_ticks,kind=excluded.kind;
-                DELETE FROM media WHERE source_id=$id AND NOT EXISTS(SELECT 1 FROM scan_warnings WHERE source_id=$id) AND relative_path NOT IN(SELECT relative_path FROM scan_media WHERE source_id=$id);
+                DELETE FROM media AS m WHERE source_id=$id AND __ALLOWED__ AND NOT EXISTS(SELECT 1 FROM scan_warnings WHERE source_id=$id) AND relative_path NOT IN(SELECT relative_path FROM scan_media WHERE source_id=$id);
                 INSERT OR IGNORE INTO media_ids SELECT lower(hex(randomblob(16))),source_id,relative_path FROM media WHERE source_id=$id;
                 UPDATE sources SET root_path=$root,last_seen=$seen WHERE id=$id;
-                """ + ClearScan,tx,("$root",root),("$seen",DateTime.UtcNow.ToString("O")));
+                """.Replace("__ALLOWED__",AllowedMediaSql) + ClearScan,tx,("$root",root),("$seen",DateTime.UtcNow.ToString("O")));
             VerifySource(); await tx.CommitAsync(ct);
         }
         progress?.Report(total); return total;
