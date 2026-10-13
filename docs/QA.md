@@ -1,5 +1,15 @@
 # QA
 
+## v0.6.0 final experience shipment
+
+[Successful run 38355699422](https://github.com/smile-plzz/Luma/actions/runs/38355699422), attempt 2, source `f655715982253824c41329425c181c8876d9f3d5`, merged through [PR #14](https://github.com/smile-plzz/Luma/pull/14) at `c85baa965e2220f7ee7ee17c4d9b7634a24a2d0d`. All 82 core tests passed on each of Windows and Linux, four Windows integration tests passed, and the packaged native UI checks passed. Deep visible-item/inset restoration, earlier-item navigation, source/folder/month restoration while disconnected, Reset, both import phases and accessible help were verified. Existing gallery, clipboard, exclusion and maintenance workflows passed. The themed dialog screenshot was inspected.
+
+ZIP SHA-256: `320e0d5dea5226563b980b18927fc99612bdbe6022153d3b46896dd1ef1aef5c`. The release contains this exact tested artifact and SHA256SUMS.txt.
+
+An earlier attempt had a Windows UI runtime crash during refresh (`Microsoft.UI.Xaml.dll`, `0xc000027b`). It did not recur in the complete retry; its cause has not been established and is not claimed fixed. This remains a real-use follow-up observation. If it recurs, record the action and Windows version; include Luma’s local `last-error.txt` if present and the Windows Application event, with private paths removed.
+
+Evidence: `final-experience.txt`, `import-phases.txt`, `before-offline-restart.json`, existing workflow summaries and themed dialog screenshots. Scale coverage includes anchor lookup in a 200,000-record catalog.
+
 ## v0.5.0 verified exclusions and branding shipment
 
 Exact package from [successful build 38350255657](https://github.com/smile-plzz/Luma/actions/runs/38350255657), source `b7d9eb16cc3547c64928e8fbdc202b7e0a400083`, merged through [PR #13](https://github.com/smile-plzz/Luma/pull/13) at `4941618f865a95cccbae01f1fc464d1b97e9e4a7`. All 77 core tests passed on each of Windows and Linux, four Windows integration tests passed, and the packaged app passed native UI automation for exclusions and existing workflows. The exclusion dialog screenshot and embedded executable icon were inspected.
@@ -120,4 +130,4 @@ Regression coverage includes case-insensitive extensions, Unicode folder names, 
 
 ## Final experience refinement
 
-Saved browsing position, explicit discovery/date-reading progress, accessible action hints and theme-matched dialogs complete the planned build. See [behavior and limits](FINAL_EXPERIENCE.md). Exact shipment evidence is recorded after verification.
+Saved browsing position, explicit discovery/date-reading progress, accessible action hints and theme-matched dialogs complete the planned build. See [behavior and limits](FINAL_EXPERIENCE.md). Verified shipment evidence is recorded in the testing handoff.

@@ -154,4 +154,4 @@ Reversible folder, source and global extension rules now filter browsing and fut
 
 ## Final experience refinement
 
-Saved browsing position, explicit discovery/date-reading progress, accessible action hints and theme-matched dialogs complete the planned build. See [behavior and limits](FINAL_EXPERIENCE.md). Exact shipment evidence is recorded after verification.
+Saved browsing position, explicit discovery/date-reading progress, accessible action hints and theme-matched dialogs complete the planned build. See [behavior and limits](FINAL_EXPERIENCE.md). Verified shipment evidence is recorded in the testing handoff.

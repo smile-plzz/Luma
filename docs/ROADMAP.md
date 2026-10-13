@@ -1,12 +1,13 @@
 # Luma delivery roadmap
 
-Status: the portable gallery development milestone is closed and merged into `main` through [PR #6](https://github.com/smile-plzz/Luma/pull/6). The first real-use follow-up, [PR #7](https://github.com/smile-plzz/Luma/pull/7), is also merged and shipped: import-lock correction and minimal UI refinement. [PR #8](https://github.com/smile-plzz/Luma/pull/8) is also merged and shipped: catalog-first reopening and reconnect updates that preserve the gallery. [PR #9](https://github.com/smile-plzz/Luma/pull/9) is merged and verified: resumable indexing and On this day memories. [PR #10](https://github.com/smile-plzz/Luma/pull/10) is merged and verified for v0.2.0: source management, refresh, storage maintenance and Activity. [PR #11](https://github.com/smile-plzz/Luma/pull/11) is merged and verified for v0.3.0: visible formats and active filters, complete Reset, consolidated navigation and pinned maintenance destinations. [PR #12](https://github.com/smile-plzz/Luma/pull/12) is merged and verified for v0.4.0: explicit month browsing, visible multi-file selection and measured large-catalog query improvements. [PR #13](https://github.com/smile-plzz/Luma/pull/13) is merged and verified for v0.5.0: reversible library/scan exclusions and executable branding. The current stage is real-life testing and everyday use. No additional feature phase is being started automatically.
+Status: the portable gallery development milestone is closed and merged into `main` through [PR #6](https://github.com/smile-plzz/Luma/pull/6). The first real-use follow-up, [PR #7](https://github.com/smile-plzz/Luma/pull/7), is also merged and shipped: import-lock correction and minimal UI refinement. [PR #8](https://github.com/smile-plzz/Luma/pull/8) is also merged and shipped: catalog-first reopening and reconnect updates that preserve the gallery. [PR #9](https://github.com/smile-plzz/Luma/pull/9) is merged and verified: resumable indexing and On this day memories. [PR #10](https://github.com/smile-plzz/Luma/pull/10) is merged and verified for v0.2.0: source management, refresh, storage maintenance and Activity. [PR #11](https://github.com/smile-plzz/Luma/pull/11) is merged and verified for v0.3.0: visible formats and active filters, complete Reset, consolidated navigation and pinned maintenance destinations. [PR #12](https://github.com/smile-plzz/Luma/pull/12) is merged and verified for v0.4.0: explicit month browsing, visible multi-file selection and measured large-catalog query improvements. [PR #13](https://github.com/smile-plzz/Luma/pull/13) is merged and verified for v0.5.0: reversible library/scan exclusions and executable branding. [PR #14](https://github.com/smile-plzz/Luma/pull/14) closes the planned build in v0.6.0 with remembered views, clear import progress and final UX feedback. The current stage is real-life testing and everyday use. No additional feature phase is being started automatically.
 
 | Milestone | Scope | Status |
 | --- | --- | --- |
 | Phase 1 — native library | Source identity, read-only scanning, thumbnails, search/tags/favorites, native file actions | Merged |
 | Phase 2 — offline browsing | Bulk preparation, cancellation/resume, coverage, cached folders, cache clearing | Merged |
 | Phase 3 — gallery redesign | Continuous gallery, customization/sorting, timeline, albums and Windows file control | Merged; automated gates passed; portable Windows shipment available |
+| Final v0.6.0 refinement | Saved views, import progress, tooltips, outcomes and dialog consistency | Complete; merged and verified |
 | Real-life testing | Personal media, physical drives, Windows file interactions and daily usability | Current stage; user feedback pending |
 | Future delivery work | External-move reconciliation, measured full-library responsiveness, signing/installer | Deferred; prioritize from real-world feedback |
 
@@ -24,7 +25,7 @@ Implemented persistent indexing checkpoints with resume/restart/report controls 
 
 ## Library management refinement
 
-User-confirmed real-machine functionality led to a discoverability-focused follow-up: Manage sources, explicit refresh scopes, Storage & previews, safe rebuild/repair, unused-preview cleanup and Activity. Browsing-position restoration and catalog backup/restore remain subsequent work; they are not included in this maintenance release.
+User-confirmed real-machine functionality led to a discoverability-focused follow-up: Manage sources, explicit refresh scopes, Storage & previews, safe rebuild/repair, unused-preview cleanup and Activity. Browsing-position restoration ships in v0.6.0. Catalog backup/restore remains deferred; it is not included.
 
 ## Exclusions and packaging update
 
@@ -32,4 +33,4 @@ Reversible folder, source and global extension rules now filter browsing and fut
 
 ## Final experience refinement
 
-Saved browsing position, explicit discovery/date-reading progress, accessible action hints and theme-matched dialogs complete the planned build. See [behavior and limits](FINAL_EXPERIENCE.md). Exact shipment evidence is recorded after verification.
+Saved browsing position, explicit discovery/date-reading progress, accessible action hints and theme-matched dialogs complete the planned build. See [behavior and limits](FINAL_EXPERIENCE.md). Verified shipment evidence is recorded in the testing handoff.

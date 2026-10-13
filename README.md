@@ -1,6 +1,6 @@
 # Luma
 
-**[Download Luma for Windows](https://github.com/smile-plzz/Luma/releases/latest/download/Luma-v0.5.0-win-x64.zip)** · [Release notes](https://github.com/smile-plzz/Luma/releases/latest)
+**[Download Luma for Windows](https://github.com/smile-plzz/Luma/releases/latest/download/Luma-v0.6.0-win-x64.zip)** · [Release notes](https://github.com/smile-plzz/Luma/releases/latest)
 
 A native Windows media library for existing folders and drives. Browse photos and videos, organize favorites and tags, and open originals in your default apps.
 
@@ -9,11 +9,13 @@ Development of the portable gallery milestone is complete and merged into `main`
 ## Run the Windows app
 
 1. Open the [verified Windows download](https://github.com/smile-plzz/Luma/releases/latest) in **Releases**.
-2. Download the **Luma-v0.5.0-win-x64.zip** under Assets. The automatically generated Source code archives do not contain the EXE.
+2. Download the **Luma-v0.6.0-win-x64.zip** under Assets. The automatically generated Source code archives do not contain the EXE.
 3. Extract the entire ZIP to a writable folder and run **Luma.App.exe**. Keep the bundled files beside the executable.
 4. Select **Add folder or drive**. Browse the indexed media; thumbnails are cached as you browse.
 
 Windows 10 version 2004+ or Windows 11, x64. The portable build bundles .NET and Windows App SDK dependencies. It is unsigned, so Windows may show its usual downloaded-app warning. There is no installer or store package yet.
+
+The **v0.6.0 final refinement** remembers your browsing position, explains discovery and metadata progress, and adds contextual help and consistent dialog themes. The planned development milestone is closed; future changes follow real-use feedback. [Final experience guide](docs/FINAL_EXPERIENCE.md).
 
 ## What works
 
@@ -76,4 +78,4 @@ Interrupted imports save progress on your PC. Use **Activity → Resume paused i
 
 ## Final experience refinement
 
-Saved browsing position, explicit discovery/date-reading progress, accessible action hints and theme-matched dialogs complete the planned build. See [behavior and limits](docs/FINAL_EXPERIENCE.md). Exact shipment evidence is recorded after verification.
+Saved browsing position, explicit discovery/date-reading progress, accessible action hints and theme-matched dialogs complete the planned build. See [behavior and limits](docs/FINAL_EXPERIENCE.md). Verified shipment evidence is recorded in the testing handoff.
