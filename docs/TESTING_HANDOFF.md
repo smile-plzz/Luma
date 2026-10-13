@@ -1,8 +1,11 @@
 # Luma: shipment and real-life testing
 
-Shipment updated: 12 October 2026 (Asia/Dhaka). The portable gallery milestone is merged into `main` through PR #6, followed by UI/import refinements in PR #7 and the shipped reconnect optimization in [PR #8](https://github.com/smile-plzz/Luma/pull/8). Resumable indexing and On this day memories are merged in [PR #9](https://github.com/smile-plzz/Luma/pull/9). Real-life testing and everyday use now guide further refinements. This is a testing shipment, not a claim that physical-device acceptance is complete.
+Shipment updated: 13 October 2026 (Asia/Dhaka). The portable gallery milestone is merged into `main` through PR #6, followed by UI/import refinements in PR #7 and the shipped reconnect optimization in [PR #8](https://github.com/smile-plzz/Luma/pull/8). Resumable indexing and On this day memories are merged in [PR #9](https://github.com/smile-plzz/Luma/pull/9). Real-life testing and everyday use now guide further refinements. This is a testing shipment, not a claim that physical-device acceptance is complete.
 
 ## What changed in this shipment
+
+- [PR #12](https://github.com/smile-plzz/Luma/pull/12) adds **Months**, a named month/count picker, exact month filtering, Older/Newer and All months. **Select** enables plain-click multi-selection; Copy to, clipboard Copy/Cut and More expose file and album actions. Clipboard preparation remains available during indexing.
+- Captured-date pages use a maintained SQLite index, continuation pages reuse counts, metadata writes commit in batches, and recycled tiles cancel queued preview work. Scanning shows elapsed time and distinct discovery/date-reading phases. A one-time local index migration requires no source rescan.
 
 - [PR #11](https://github.com/smile-plzz/Luma/pull/11) addresses review items 1 and 3: all supported formats appear by default, active filters have removable chips, counts show filtered results against the whole library, and Reset clears all content filters. On upgrade, the former default everyday-format filter is disabled once; subsequent explicit choices persist.
 - Timeline is **View → Show timeline** within Library. Settings and Storage & previews stay pinned below the sidebar. Manage sources, Refresh, Storage & previews and Activity each own their maintenance tasks; the duplicate Drive tools panel is removed.
@@ -27,26 +30,28 @@ Shipment updated: 12 October 2026 (Asia/Dhaka). The portable gallery milestone i
 | --- | --- |
 | Platform | Windows 10 2004+ / Windows 11, x64 |
 | Package | Unsigned, self-contained portable ZIP; no installer |
-| Download | [Luma v0.3.0 Windows ZIP](https://github.com/smile-plzz/Luma/releases/download/v0.3.0/Luma-v0.3.0-win-x64.zip) |
-| Tested source | `35103a06e88f85a2129ff7eb96bb6e65996f1185` |
-| Merge commit | `bba182df356562fffd51d9d40143a274dae541b8` |
-| Automated evidence | [Successful run 38260963380](https://github.com/smile-plzz/Luma/actions/runs/38260963380) |
-| Desktop evidence | [Screenshots, settings and smoke results](https://github.com/smile-plzz/Luma/actions/runs/38260963380/artifacts/11751939372) |
-| ZIP SHA-256 | `963d25e3a5fc32ab29c45787f7b72ef84cb7bb7d4edcef36b004e1d4808833bc` |
+| Download | [Luma v0.4.0 Windows ZIP](https://github.com/smile-plzz/Luma/releases/download/v0.4.0/Luma-v0.4.0-win-x64.zip) |
+| Tested source | `a1c03b8323e5b80644b090bf69da88ffec92ae64` |
+| Merge commit | `afe393a90631151567ec366799a0dd3df8cad790` |
+| Automated evidence | [Successful run 38307725690](https://github.com/smile-plzz/Luma/actions/runs/38307725690) |
+| Desktop evidence | [Screenshots, settings and smoke results](https://github.com/smile-plzz/Luma/actions/runs/38307725690/artifacts/11773291535) |
+| ZIP SHA-256 | `645802f22909f508b3be169a4ae29969fcca97e7beef9de17bb3c8fe6c04d42d` |
 
-67 core tests passed on Windows and Linux, four Windows integration tests passed, and the packaged app passed native desktop automation. The UI run covers continuous scrolling across 260 fixtures and back, recycled images, search, favorites, albums, folders, offline preparation/disconnection, view preferences after restart and theme switching. Light/dark screenshots were inspected. Native reconnect checks verified preserved selection/scroll and no automatic indexing of an added file. Native management checks passed for removal cancellation/confirmation, refreshed album counts, all-source refresh, preview repair/rebuild, Activity and cleanup. Native format/navigation checks verified a DNG catalog entry is visible by default, the everyday-format filter changes the count from 261 to 260, chip removal and Reset reveal it, and Timeline and pinned footer actions are reachable. The offline memories smoke passed; core tests cover resume across restart/mount changes, checkpoint invalidation, cancellation, concurrent scanner exclusion, filtering and leap days. Catalog-only scale tests cover 1k/10k/100k records.
+71 core tests passed on Windows and Linux, four Windows integration tests passed, and the packaged app passed native desktop automation. The UI run covers continuous scrolling across 260 fixtures and back, recycled images, search, favorites, albums, folders, offline preparation/disconnection, view preferences after restart and theme switching. Light/dark and month-selection screenshots were inspected. Native month tests verify exact counts, adjacent navigation and All months. A two-file selection was copied and both paths were verified in the Windows clipboard. Native reconnect checks verified preserved selection/scroll and no automatic indexing of an added file. Native management checks passed for removal cancellation/confirmation, refreshed album counts, all-source refresh, preview repair/rebuild, Activity and cleanup. Native format/navigation checks verified a DNG catalog entry is visible by default, the everyday-format filter changes the count from 261 to 260, chip removal and Reset reveal it, and Timeline and pinned footer actions are reachable. The offline memories smoke passed; core tests cover resume across restart/mount changes, checkpoint invalidation, cancellation, concurrent scanner exclusion, filtering and leap days. Catalog-only scale tests cover 1k/10k/100k/200k records.
 
-The versioned [v0.3.0 Release](https://github.com/smile-plzz/Luma/releases/tag/v0.3.0) contains the exact verified ZIP plus SHA256SUMS.txt. Release assets do not have the Actions artifact's automatic expiration. Source code archives are separate and do not contain the EXE. The release workflow verifies the successful source run and ZIP digest before publication. Source, build automation, release notes, tests and documentation remain versioned in Git; binaries are under Releases.
+The versioned [v0.4.0 Release](https://github.com/smile-plzz/Luma/releases/tag/v0.4.0) contains the exact verified ZIP plus SHA256SUMS.txt. Release assets do not have the Actions artifact's automatic expiration. Source code archives are separate and do not contain the EXE. The release workflow verifies the successful source run and ZIP digest before publication. Source, build automation, release notes, tests and documentation remain versioned in Git; binaries are under Releases.
 
 ## First run and upgrade
 
 1. Close any running Luma. If you have an existing library, copy `%LOCALAPPDATA%\Luma` to a backup location while the app is closed.
 2. Extract the entire ZIP into a fresh writable folder. Run `Luma.App.exe` with all bundled files beside it; do not copy only the EXE.
 3. Add a representative folder containing your usual JPEG/PNG photos and MP4/MOV videos. Scanning catalogs originals without rearranging them; metadata enrichment follows discovery.
-4. Explore **View → Show timeline**, folders, sorting, View options, search, favorites and albums. Open originals in their usual applications. Close and reopen to check retained settings and organization.
+4. Explore **Months**, the month picker, Older/Newer and All months, folders, sorting, View options, search, favorites and albums. Open originals in their usual applications. Close and reopen to check retained settings and organization.
 5. Add the external drive, repair missing previews in **Storage & previews**, and check coverage before disconnecting. Saved previews are not original-file backups and may later be evicted by normal browsing.
 
 The first upgrade from older versions turns off **Everyday formats only** once so no supported format is hidden by the former default. You can re-enable it in View; this explicit choice will persist.
+
+This upgrade builds a local timeline index once, preserving existing data and scan checkpoints. Initial discovery and metadata reading still depend on drive and codec speed; a 200,000-file first import can remain lengthy. Use Activity to pause discovery; resume date reading through Manage sources → More → Refresh metadata. [Measured performance and limits](PERFORMANCE.md).
 
 User data remains in `%LOCALAPPDATA%\Luma` when replacing the executable folder. Do not run an older app against a library updated by this build: older versions do not maintain the new album identities during file operations. For rollback, close Luma and restore the matching pre-upgrade data backup along with the prior app. Preserve the newer data separately first; rollback discards organization added since that backup. Original-file moves/deletes are not undone by restoring the catalog.
 

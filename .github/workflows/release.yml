@@ -3,13 +3,13 @@ on:
   push:
     branches: [main]
     paths:
-      - releases/v0.3.0.md
+      - releases/v0.4.0.md
       - .github/workflows/release.yml
   workflow_dispatch:
 permissions:
   contents: read
 concurrency:
-  group: luma-release-v0.3.0
+  group: luma-release-v0.4.0
   cancel-in-progress: false
 jobs:
   publish:
@@ -20,11 +20,11 @@ jobs:
     env:
       GH_TOKEN: ${{ github.token }}
       GH_REPO: ${{ github.repository }}
-      RELEASE_TAG: v0.3.0
-      TESTED_SHA: 35103a06e88f85a2129ff7eb96bb6e65996f1185
-      BUILD_RUN: '38260963380'
-      ARTIFACT_ID: '11752338840'
-      ZIP_SHA256: 963d25e3a5fc32ab29c45787f7b72ef84cb7bb7d4edcef36b004e1d4808833bc
+      RELEASE_TAG: v0.4.0
+      TESTED_SHA: a1c03b8323e5b80644b090bf69da88ffec92ae64
+      BUILD_RUN: '38307725690'
+      ARTIFACT_ID: '11773421280'
+      ZIP_SHA256: 645802f22909f508b3be169a4ae29969fcca97e7beef9de17bb3c8fe6c04d42d
     steps:
       - uses: actions/checkout@v4
       - name: Verify provenance and retrieve tested package
