@@ -5,7 +5,12 @@ namespace Luma.Core;
 public enum MediaSort { Newest, Oldest, Name, Largest, Captured, Type }
 public sealed record GalleryCursor(string Value, string SourceId, string RelativePath);
 public sealed record LibraryQuery(string? SourceId = null, string Search = "", string? Kind = null,
-    bool FavoritesOnly = false, MediaSort Sort = MediaSort.Newest, int Offset = 0, int Limit = 120, string Folder = "", bool? Descending = null, string? AlbumId = null, bool IncludeDescendants = true, bool CommonOnly = false, long? BeforeTicks = null, GalleryCursor? Cursor = null, DateOnly? MemoriesOn = null);
+    bool FavoritesOnly = false, MediaSort Sort = MediaSort.Newest, int Offset = 0, int Limit = 120, string Folder = "", bool? Descending = null, string? AlbumId = null, bool IncludeDescendants = true, bool CommonOnly = false, long? BeforeTicks = null, GalleryCursor? Cursor = null, DateOnly? MemoriesOn = null, long? FromTicks = null, long? KnownTotal = null);
+public sealed record MonthBucket(string Month, long Count)
+{
+    public string Label => DateTime.ParseExact(Month+"-01","yyyy-MM-dd",System.Globalization.CultureInfo.InvariantCulture).ToString("MMMM yyyy");
+    public override string ToString() => $"{Label} · {Count:N0}";
+}
 public sealed record LibraryItem(CachedMedia Media, bool Favorite, string Tags, string Id = "", MediaMetadata? Metadata = null);
 public sealed record LibraryPage(IReadOnlyList<LibraryItem> Items, long Total, GalleryCursor? Next = null);
 
@@ -47,8 +52,14 @@ public sealed partial class MediaCache
     private static string OrderValue(MediaSort sort) => sort switch
     {
         MediaSort.Name => "m.relative_path COLLATE NOCASE", MediaSort.Largest => "m.length",
-        MediaSort.Captured => "COALESCE(d.taken_ticks,m.modified_ticks)", MediaSort.Type => "luma_extension(m.relative_path) COLLATE NOCASE", _ => "m.modified_ticks"
+        MediaSort.Captured => "b.date_ticks", MediaSort.Type => "luma_extension(m.relative_path) COLLATE NOCASE", _ => "m.modified_ticks"
     };
+    private static string QueryFrom(LibraryQuery query)
+    {
+        if(query.Sort!=MediaSort.Captured)return GalleryFrom;
+        var index=query.Descending==false ? "ix_browse_dates_asc" : "ix_browse_dates_desc";
+        return GalleryFrom.Replace("FROM media m",$"FROM browse_dates b INDEXED BY {index} CROSS JOIN media m ON m.source_id=b.source_id AND m.relative_path=b.relative_path");
+    }
     private static void QueryParameters(SqliteCommand cmd, LibraryQuery query)
     {
         var reference=query.MemoriesOn.GetValueOrDefault();
@@ -85,21 +96,28 @@ public sealed partial class MediaCache
         await using var cmd = db.CreateCommand(); cmd.Transaction = tx; QueryParameters(cmd,query);
         var value = OrderValue(query.Sort);
         var descending = query.Descending ?? query.Sort is MediaSort.Newest or MediaSort.Largest or MediaSort.Captured;
-        var from = GalleryFrom;
+        var from = QueryFrom(query);
         if (query.BeforeTicks is not null)
         {
             from += " AND " + (query.Sort == MediaSort.Captured ? OrderValue(MediaSort.Captured) : "m.modified_ticks") + " <= $before";
             cmd.Parameters.AddWithValue("$before",query.BeforeTicks.Value);
         }
-        cmd.CommandText = "SELECT COUNT(*) " + from;
-        var total = Convert.ToInt64(await cmd.ExecuteScalarAsync(ct));
+        if(query.FromTicks is not null)
+        {
+            from += " AND " + (query.Sort == MediaSort.Captured ? OrderValue(MediaSort.Captured) : "m.modified_ticks") + " >= $from";
+            cmd.Parameters.AddWithValue("$from",query.FromTicks.Value);
+        }
+        var simpleCount=query.Search.Trim().Length==0 && !query.FavoritesOnly && query.MemoriesOn is null && query.AlbumId is null
+            && !query.CommonOnly && query.Folder.Length==0 && query.IncludeDescendants && query.BeforeTicks is null && query.FromTicks is null;
+        cmd.CommandText = simpleCount ? "SELECT COUNT(*) FROM media m WHERE ($source IS NULL OR m.source_id=$source) AND ($kind IS NULL OR m.kind=$kind)" : "SELECT COUNT(*) " + from;
+        var total = query.KnownTotal ?? Convert.ToInt64(await cmd.ExecuteScalarAsync(ct));
         if (query.Cursor is not null)
         {
-            from += $" AND ({value} {(descending ? "<" : ">")} $cursor OR ({value}=$cursor AND (m.source_id>$cs OR (m.source_id=$cs AND m.relative_path>$cp))))";
+            from += $" AND {value} {(descending ? "<=" : ">=")} $cursor AND ({value} {(descending ? "<" : ">")} $cursor OR ({value}=$cursor AND (m.source_id>$cs OR (m.source_id=$cs AND m.relative_path>$cp))))";
             cmd.Parameters.AddWithValue("$cursor", query.Sort is MediaSort.Name or MediaSort.Type ? query.Cursor.Value : long.Parse(query.Cursor.Value, System.Globalization.CultureInfo.InvariantCulture));
             cmd.Parameters.AddWithValue("$cs",query.Cursor.SourceId); cmd.Parameters.AddWithValue("$cp",query.Cursor.RelativePath);
         }
-        cmd.CommandText = "SELECT m.source_id,m.relative_path,m.length,m.modified_ticks,m.kind,COALESCE(a.favorite,0),COALESCE(a.tags,''),COALESCE(i.id,''),d.taken_ticks,COALESCE(d.date_origin,'Modification date fallback'),COALESCE(d.width,0),COALESCE(d.height,0),COALESCE(d.duration,0),COALESCE(d.orientation,0)," + value + " " + from + " ORDER BY " + value + (descending ? " DESC" : " ASC") + ",m.source_id,m.relative_path LIMIT $limit OFFSET $offset";
+        cmd.CommandText = "SELECT m.source_id,m.relative_path,m.length,m.modified_ticks,m.kind,COALESCE(a.favorite,0),COALESCE(a.tags,''),COALESCE(i.id,''),d.taken_ticks,COALESCE(d.date_origin,'Modification date fallback'),COALESCE(d.width,0),COALESCE(d.height,0),COALESCE(d.duration,0),COALESCE(d.orientation,0)," + value + " " + from + " ORDER BY " + value + (descending ? " DESC" : " ASC") + (query.Sort==MediaSort.Captured ? ",b.source_id,b.relative_path" : ",m.source_id,m.relative_path") + " LIMIT $limit OFFSET $offset";
         cmd.Parameters.AddWithValue("$limit",query.Limit); cmd.Parameters.AddWithValue("$offset",query.Cursor is null ? query.Offset : 0);
         var roots = new Dictionary<string,bool>(); var items = new List<LibraryItem>(); GalleryCursor? next = null;
         await using var r = await cmd.ExecuteReaderAsync(ct);
@@ -114,14 +132,18 @@ public sealed partial class MediaCache
         return new(items,total,next);
     }
 
-    public async Task<IReadOnlyList<string>> MonthsAsync(LibraryQuery query, CancellationToken ct = default)
+    public async Task<IReadOnlyList<string>> MonthsAsync(LibraryQuery query, CancellationToken ct = default) =>
+        (await MonthBucketsAsync(query,ct)).Select(m=>m.Month).ToArray();
+
+    // Month navigation describes the filtered collection, before a month/date range is applied.
+    public async Task<IReadOnlyList<MonthBucket>> MonthBucketsAsync(LibraryQuery query, CancellationToken ct = default)
     {
         await using var db = new SqliteConnection(connectionString); await db.OpenAsync(ct);
         await using var cmd = db.CreateCommand(); QueryParameters(cmd,query);
         var date = query.Sort == MediaSort.Captured ? OrderValue(MediaSort.Captured) : "m.modified_ticks";
-        cmd.CommandText = "SELECT DISTINCT strftime('%Y-%m',(" + date + "-621355968000000000)/10000000,'unixepoch','localtime') " + GalleryFrom + " ORDER BY 1 DESC";
-        var result = new List<string>(); await using var r = await cmd.ExecuteReaderAsync(ct);
-        while (await r.ReadAsync(ct)) if (!r.IsDBNull(0)) result.Add(r.GetString(0));
+        cmd.CommandText = "SELECT strftime('%Y-%m',(" + date + "-621355968000000000)/10000000,'unixepoch','localtime'),COUNT(*) " + QueryFrom(query) + " GROUP BY 1 ORDER BY 1 DESC";
+        var result = new List<MonthBucket>(); await using var r = await cmd.ExecuteReaderAsync(ct);
+        while (await r.ReadAsync(ct)) if (!r.IsDBNull(0)) result.Add(new(r.GetString(0),r.GetInt64(1)));
         return result;
     }
 

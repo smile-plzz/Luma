@@ -12,6 +12,7 @@ public sealed partial class MediaCache
         CREATE TABLE IF NOT EXISTS scan_jobs(source_id TEXT PRIMARY KEY);
         CREATE TABLE IF NOT EXISTS scan_folders(source_id TEXT NOT NULL,path TEXT NOT NULL,done INTEGER NOT NULL DEFAULT 0,stamp INTEGER NOT NULL DEFAULT 0,PRIMARY KEY(source_id,path));
         CREATE TABLE IF NOT EXISTS scan_media(source_id TEXT NOT NULL,relative_path TEXT NOT NULL,folder TEXT NOT NULL,length INTEGER NOT NULL,modified_ticks INTEGER NOT NULL,kind TEXT NOT NULL,PRIMARY KEY(source_id,relative_path));
+        CREATE INDEX IF NOT EXISTS ix_scan_pending ON scan_folders(source_id,done,path);
         CREATE INDEX IF NOT EXISTS ix_scan_media_folder ON scan_media(source_id,folder);
         """;
     private const string ClearScan = "DELETE FROM scan_media WHERE source_id=$id; DELETE FROM scan_folders WHERE source_id=$id; DELETE FROM scan_jobs WHERE source_id=$id;";
@@ -86,6 +87,7 @@ public sealed partial class MediaCache
                 ("$root",root),("$seen",DateTime.UtcNow.ToString("O")));
             await tx.CommitAsync(ct);
         }
+        var count=checked((int)await Sql("SELECT COUNT(*) FROM scan_media WHERE source_id=$id"));
         while(true)
         {
             VerifySource();
@@ -106,6 +108,7 @@ public sealed partial class MediaCache
             if(savedStamp!=stamp)
             {
                 await using var tx=db.BeginTransaction();
+                count-=checked((int)await Sql("SELECT COUNT(*) FROM scan_media WHERE source_id=$id AND folder=$folder",tx,("$folder",folder)));
                 await Sql("DELETE FROM scan_media WHERE source_id=$id AND folder=$folder; UPDATE scan_folders SET stamp=$stamp WHERE source_id=$id AND path=$folder",tx,("$folder",folder),("$stamp",stamp));
                 await tx.CommitAsync(ct);
             }
@@ -117,22 +120,29 @@ public sealed partial class MediaCache
                 await using var r=await cmd.ExecuteReaderAsync(ct);
                 while(await r.ReadAsync(ct)) savedPaths.Add(r.GetString(0));
             }
-            var count=checked((int)await Sql("SELECT COUNT(*) FROM scan_media WHERE source_id=$id"));
             var batch=new List<FileInfo>(100);
             async Task SaveBatch()
             {
                 VerifySource();
                 await using var tx=db.BeginTransaction();
+                await using var insert=db.CreateCommand(); insert.Transaction=tx;
+                insert.CommandText="INSERT OR REPLACE INTO scan_media VALUES($id,$path,$folder,$len,$ticks,$kind)";
+                insert.Parameters.AddWithValue("$id",sourceId); insert.Parameters.AddWithValue("$folder",folder);
+                insert.Parameters.Add("$path",SqliteType.Text); insert.Parameters.Add("$len",SqliteType.Integer);
+                insert.Parameters.Add("$ticks",SqliteType.Integer); insert.Parameters.Add("$kind",SqliteType.Text); insert.Prepare();
                 foreach(var info in batch)
-                    await Sql("INSERT OR REPLACE INTO scan_media VALUES($id,$path,$folder,$len,$ticks,$kind)",tx,
-                        ("$path",Path.GetRelativePath(root,info.FullName)),("$folder",folder),("$len",info.Length),("$ticks",info.LastWriteTimeUtc.Ticks),("$kind",Videos.Contains(info.Extension) ? "video" : "photo"));
+                {
+                    insert.Parameters["$path"].Value=Path.GetRelativePath(root,info.FullName);
+                    insert.Parameters["$len"].Value=info.Length; insert.Parameters["$ticks"].Value=info.LastWriteTimeUtc.Ticks;
+                    insert.Parameters["$kind"].Value=Videos.Contains(info.Extension) ? "video" : "photo";
+                    await insert.ExecuteNonQueryAsync(ct);
+                }
                 await tx.CommitAsync(ct); count+=batch.Count; batch.Clear(); progress?.Report(count);
             }
-            foreach(var file in Directory.EnumerateFiles(directory))
+            foreach(var info in new DirectoryInfo(directory).EnumerateFiles())
             {
                 ct.ThrowIfCancellationRequested();
-                if(!Extensions.Contains(Path.GetExtension(file)) || savedPaths.Contains(Path.GetRelativePath(root,file))) continue;
-                var info=new FileInfo(file);
+                if(!Extensions.Contains(info.Extension) || savedPaths.Contains(Path.GetRelativePath(root,info.FullName))) continue;
                 if(info.Attributes.HasFlag(FileAttributes.ReparsePoint)) continue;
                 batch.Add(info);
                 if(batch.Count==100) await SaveBatch();

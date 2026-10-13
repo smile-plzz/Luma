@@ -92,3 +92,12 @@ Core tests cover successful and offline rebuilds, cancellation and identity loss
 ## Filter and navigation refinement
 
 Tests cover new-library defaults, one-time settings migration, retention of later explicit filter choices, all-format catalog counts/cursor filtering, and native display of an indexed non-everyday DNG fixture. Desktop checks enable the opt-in format filter, verify matching-versus-library counts, remove its chip, and use Reset to reveal the file again. The existing source/storage/activity tests now use consolidated destinations. A DNG fixture with no valid image payload verifies catalog visibility independently from preview decoding.
+
+
+## v0.4.0 month and large-library acceptance
+
+Core checks cover exact local month ranges in both directions, filtered month counts, migration of an existing catalog, idempotent initialization, metadata invalidation/deletion, source removal, cursor ties, and cancellation/resume across 100-record metadata commits. Scale fixtures include 200,000 records and report the old capture-sort expression separately from the new continuation query.
+
+Native smoke selects September 2026, verifies its 29-item fixture count, visits the adjacent month and returns, selects two files in Select mode, and checks that the Windows clipboard contains both actual file paths. It clears selection and returns to All months. `months-selection.png` and `months-selection.txt` are the review evidence. Existing offline, reconnect, thumbnail recycling, storage and management checks remain required.
+
+Bench acceptance: upgrade a backed-up real catalog while Luma is closed; compare date grouping against known photo dates; browse small and large months; test Ctrl/Shift selection and the simple Select mode; paste copies into a disposable Explorer folder. Measure time to first usable gallery, warm month switching and scrolling on the 200,000-item library. Pause and resume both discovery and date reading. Note HDD model, connection, file types, collection/folder counts and cache state. Do not compare synthetic SQLite timings with an initial physical-drive scan.

@@ -33,6 +33,9 @@ public sealed partial class MediaCache(string databasePath, ISourceResolver? sou
         await cmd.ExecuteNonQueryAsync(ct);
         cmd.CommandText = ScanSchema; await cmd.ExecuteNonQueryAsync(ct);
         cmd.CommandText = OrganizationSchema; await cmd.ExecuteNonQueryAsync(ct);
+        await using var migration = db.BeginTransaction();
+        cmd.Transaction=migration; cmd.CommandText = BrowseDateSchema; await cmd.ExecuteNonQueryAsync(ct);
+        await migration.CommitAsync(ct);
     }
 
     public async Task<IReadOnlyList<CachedMedia>> ListAsync(string sourceId, CancellationToken ct = default)
