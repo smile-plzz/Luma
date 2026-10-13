@@ -29,9 +29,9 @@ public sealed partial class MediaCache
 
     public async Task<IReadOnlyList<Album>> AlbumsAsync(CancellationToken ct = default)
     {
-        await using var db = new SqliteConnection(connectionString); await db.OpenAsync(ct);
+        await using var db = CreateConnection(); await db.OpenAsync(ct);
         await using var cmd = db.CreateCommand();
-        cmd.CommandText = "SELECT a.id,a.name,COUNT(m.source_id) FROM albums a LEFT JOIN album_items ai ON ai.album_id=a.id LEFT JOIN media_ids i ON i.id=ai.media_id LEFT JOIN media m ON m.source_id=i.source_id AND m.relative_path=i.relative_path GROUP BY a.id ORDER BY a.name COLLATE NOCASE";
+        cmd.CommandText = "SELECT a.id,a.name,COUNT(m.source_id) FROM albums a LEFT JOIN album_items ai ON ai.album_id=a.id LEFT JOIN media_ids i ON i.id=ai.media_id LEFT JOIN media m ON m.source_id=i.source_id AND m.relative_path=i.relative_path AND " + AllowedMediaSql + " GROUP BY a.id ORDER BY a.name COLLATE NOCASE";
         var result = new List<Album>(); await using var r = await cmd.ExecuteReaderAsync(ct);
         while (await r.ReadAsync(ct)) result.Add(new(r.GetString(0), r.GetString(1), r.GetInt64(2)));
         return result;
@@ -50,7 +50,7 @@ public sealed partial class MediaCache
 
     public async Task SetAlbumItemsAsync(string albumId, IEnumerable<CachedMedia> media, bool add, CancellationToken ct = default)
     {
-        await using var db = new SqliteConnection(connectionString); await db.OpenAsync(ct);
+        await using var db = CreateConnection(); await db.OpenAsync(ct);
         await using var tx = (SqliteTransaction)await db.BeginTransactionAsync(ct);
         foreach (var item in media)
         {
@@ -69,7 +69,7 @@ public sealed partial class MediaCache
 
     public async Task<Dictionary<string,string>> SourceLabelsAsync(CancellationToken ct = default)
     {
-        await using var db = new SqliteConnection(connectionString); await db.OpenAsync(ct);
+        await using var db = CreateConnection(); await db.OpenAsync(ct);
         await using var cmd = db.CreateCommand(); cmd.CommandText = "SELECT source_id,label FROM source_labels";
         var labels = new Dictionary<string,string>(); await using var r = await cmd.ExecuteReaderAsync(ct);
         while (await r.ReadAsync(ct)) labels[r.GetString(0)] = r.GetString(1);
@@ -79,7 +79,7 @@ public sealed partial class MediaCache
     public async Task<int> EnrichAsync(IMetadataReader reader, string? sourceId = null, CancellationToken ct = default, IProgress<int>? progress = null)
     {
         int count = 0; string lastSource="",lastPath="";
-        await using var db=new SqliteConnection(connectionString); await db.OpenAsync(ct);
+        await using var db=CreateConnection(); await db.OpenAsync(ct);
         while(true)
         {
             // Read bounded batches of missing/stale metadata; release the reader before
@@ -94,6 +94,7 @@ public sealed partial class MediaCache
                     AND (m.source_id,m.relative_path)>($lastSource,$lastPath)
                     ORDER BY m.source_id,m.relative_path LIMIT 100
                     """;
+                cmd.CommandText=cmd.CommandText.Replace("AND d.source_id IS NULL","AND d.source_id IS NULL AND " + AllowedMediaSql);
                 cmd.Parameters.AddWithValue("$source",(object?)sourceId ?? DBNull.Value);
                 cmd.Parameters.AddWithValue("$lastSource",lastSource); cmd.Parameters.AddWithValue("$lastPath",lastPath);
                 await using var r=await cmd.ExecuteReaderAsync(ct);
@@ -154,7 +155,7 @@ public sealed partial class MediaCache
     public async Task RelocateAsync(CachedMedia old, CachedMedia target, CancellationToken ct = default)
     {
         using var lease = IndexingLease();
-        await using var db = new SqliteConnection(connectionString); await db.OpenAsync(ct);
+        await using var db = CreateConnection(); await db.OpenAsync(ct);
         await using var tx = (SqliteTransaction)await db.BeginTransactionAsync(ct);
         await using var cmd = db.CreateCommand(); cmd.Transaction = tx;
         cmd.CommandText = """
@@ -180,7 +181,7 @@ public sealed partial class MediaCache
 
     private async Task ExecuteAsync(string sql, CancellationToken ct, params (string Name, object Value)[] parameters)
     {
-        await using var db = new SqliteConnection(connectionString); await db.OpenAsync(ct);
+        await using var db = CreateConnection(); await db.OpenAsync(ct);
         await using var tx = (SqliteTransaction)await db.BeginTransactionAsync(ct);
         await using var cmd = db.CreateCommand(); cmd.Transaction = tx; cmd.CommandText = sql;
         foreach (var p in parameters) cmd.Parameters.AddWithValue(p.Name,p.Value);

@@ -44,6 +44,7 @@ public sealed partial class MainWindow : Window
     {
         catalog = new(Path.Combine(AppSettings.LocalRoot, "catalog.db"), resolver);
         InitializeComponent();
+        AppWindow.SetIcon(Path.Combine(AppContext.BaseDirectory,"Assets","Luma.ico"));
         var work = Microsoft.UI.Windowing.DisplayArea.GetFromWindowId(AppWindow.Id,
             Microsoft.UI.Windowing.DisplayAreaFallback.Primary).WorkArea;
         var width = Math.Min(1280, work.Width - 32); var height = Math.Min(850, work.Height - 32);
@@ -237,7 +238,8 @@ public sealed partial class MainWindow : Window
     {
         var element = e.OriginalSource as FrameworkElement;
         while (element is not null && element.DataContext is not MediaCard) element = VisualTreeHelper.GetParent(element) as FrameworkElement;
-        if (element?.DataContext is MediaCard card && !MediaGrid.SelectedItems.Contains(card)) MediaGrid.SelectedItem = card;
+        contextCard=element?.DataContext as MediaCard;
+        if (contextCard is MediaCard card && !MediaGrid.SelectedItems.Contains(card)) MediaGrid.SelectedItem = card;
     }
     private async void GridDoubleTapped(object sender, DoubleTappedRoutedEventArgs e) { if(SelectMode.IsChecked!=true)await Guard(Open); }
     private string Resolve(CachedMedia media)
@@ -360,10 +362,13 @@ public sealed partial class MainWindow : Window
         var panel = new StackPanel { Spacing = 18, MinWidth = 380 };
         panel.Children.Add(theme); panel.Children.Add(budget); panel.Children.Add(new TextBlock { Text = "Thumbnails and metadata are saved on this PC. Old thumbnails are removed when the cache fills, including thumbnails from offline drives.", TextWrapping = TextWrapping.Wrap, MaxWidth = 400 });
         var dialog = new ContentDialog { XamlRoot = Root.XamlRoot, Title = "Settings", Content = panel, PrimaryButtonText = "Save", CloseButtonText = "Cancel" };
-        bool storage=false;
+        bool storage=false,exclusions=false;
+        panel.Children.Add(Description("Luma · Your memories, beautifully within reach.\nVersion 0.5.0 · Windows portable"));
+        panel.Children.Add(ActionButton("Manage exclusions…",()=> { exclusions=true; dialog.Hide(); }));
         panel.Children.Add(ActionButton("Storage & previews",()=> { storage=true; dialog.Hide(); }));
         var result=await dialog.ShowAsync();
         if(storage) { await OpenStorage(); return; }
+        if(exclusions) { await OpenExclusions(); return; }
         if (result != ContentDialogResult.Primary) return;
         settings.Theme = theme.SelectedItem?.ToString() ?? "Default"; settings.CacheGiB = double.IsNaN(budget.Value) ? 2 : (int)Math.Clamp(budget.Value, 1, 32);
         settings.Save(); ApplyTheme();

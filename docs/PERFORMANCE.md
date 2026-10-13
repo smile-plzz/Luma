@@ -24,3 +24,7 @@ Initial discovery still walks a new drive. Windows metadata extraction and previ
 Search, filtered counts and month breakdowns can visit many catalog records. Lightweight loaded records accumulate during unrestricted scrolling; Select all matching results deliberately loads the full match set. Use month browsing and smaller selections for a 200,000-item collection. Full-window data virtualization is not claimed.
 
 Compare first usable gallery, warm month switching, scrolling, discovery and date-reading durations separately on the real bench. Record HDD/USB connection, file types, count and cache state. Exercise pause/restart, offline browsing and clipboard copies into a disposable folder. Database results do not certify USB throughput, 200,000-image decoding, high-DPI layouts or frame rate.
+
+## Exclusions and packaging update
+
+Reversible folder, source and global extension rules now filter browsing and future scans. Use Settings or Refresh → Manage exclusions to restore them; Reset does not remove rules. Originals and saved organization are retained. Changing rules invalidates affected paused traversal checkpoints, not the published catalog. See [usage and limits](EXCLUSIONS.md) and [executable branding](BRANDING.md).

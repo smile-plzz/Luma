@@ -6,6 +6,13 @@ Add-Type -AssemblyName System.Drawing
 Add-Type -AssemblyName System.Windows.Forms
 New-Item -ItemType Directory -Force artifacts/qa | Out-Null
 $exe = (Resolve-Path $Executable).Path
+$version=[System.Diagnostics.FileVersionInfo]::GetVersionInfo($exe)
+if ($version.ProductName -ne 'Luma' -or $version.FileVersion -ne '0.5.0.0' -or $version.FileDescription -ne 'Luma') { throw 'Executable branding/version metadata is incorrect.' }
+if (!(Test-Path (Join-Path (Split-Path $exe) 'Assets/Luma.ico'))) { throw 'Window icon is missing.' }
+$icon=[System.Drawing.Icon]::ExtractAssociatedIcon($exe)
+if (!$icon) { throw 'Executable icon is missing.' }
+$icon.ToBitmap().Save((Join-Path (Get-Location) 'artifacts/qa/executable-icon.png')); $icon.Dispose()
+$version | Format-List ProductName,FileDescription,FileVersion,ProductVersion | Out-File artifacts/qa/executable-metadata.txt
 $sessionId=[Guid]::NewGuid().ToString('N')
 $smokeRoot=Join-Path $env:TEMP "Luma-smoke-$sessionId"
 $launchArgs=@('--smoke-test',"--smoke-session=$sessionId")
@@ -300,6 +307,66 @@ try {
     Wait-Control '261 items' | Out-Null
     'PASS: exact month counts and boundaries, older/newer navigation, two-file selection mode, Windows file clipboard and all-month reset.' | Set-Content artifacts/qa/months-selection.txt
     'PASS: non-everyday file visible by default, filter counts and removal, Reset reveals files, consolidated navigation.' | Set-Content artifacts/qa/filters-navigation.txt
+    # Exclusions use the item context menu; restoration remains reachable from an empty gallery.
+    function Open-ItemMenu([string]$Name) {
+        Select-Card $Name
+        $item=Wait-Control $Name; $pattern=$null
+        while ($item -and !$item.TryGetCurrentPattern([System.Windows.Automation.SelectionItemPattern]::Pattern,[ref]$pattern)) {
+            $item=[System.Windows.Automation.TreeWalker]::ControlViewWalker.GetParent($item)
+        }
+        $item.SetFocus(); [System.Windows.Forms.SendKeys]::SendWait('+{F10}')
+    }
+    function Open-Exclusions {
+        (Wait-Control 'Refresh library').GetCurrentPattern([System.Windows.Automation.InvokePattern]::Pattern).Invoke()
+        (Wait-Control 'Manage exclusions…').GetCurrentPattern([System.Windows.Automation.InvokePattern]::Pattern).Invoke()
+        Wait-Control 'Library exclusions' | Out-Null
+    }
+    function Restore-Rule([string]$Prefix) {
+        $nodes=$window.FindAll([System.Windows.Automation.TreeScope]::Descendants,[System.Windows.Automation.Condition]::TrueCondition)
+        $restore=$nodes | Where-Object { $_.Current.Name.StartsWith($Prefix) } | Select-Object -First 1
+        if (!$restore) { throw "Missing restore action: $Prefix" }
+        $restore.GetCurrentPattern([System.Windows.Automation.InvokePattern]::Pattern).Invoke()
+        Wait-Control 'No exclusions. Everything supported is included.' | Out-Null
+        (Wait-Control 'Done').GetCurrentPattern([System.Windows.Automation.InvokePattern]::Pattern).Invoke()
+    }
+    $search.GetCurrentPattern([System.Windows.Automation.ValuePattern]::Pattern).SetValue('fixture007')
+    Open-ItemMenu 'fixture007.bmp'
+    (Wait-Control 'Exclude this folder…').GetCurrentPattern([System.Windows.Automation.InvokePattern]::Pattern).Invoke()
+    (Wait-Control 'Cancel').GetCurrentPattern([System.Windows.Automation.InvokePattern]::Pattern).Invoke()
+    Wait-Control 'fixture007.bmp' | Out-Null
+    Open-ItemMenu 'fixture007.bmp'
+    (Wait-Control 'Exclude this folder…').GetCurrentPattern([System.Windows.Automation.InvokePattern]::Pattern).Invoke()
+    (Wait-Control 'Exclude').GetCurrentPattern([System.Windows.Automation.InvokePattern]::Pattern).Invoke()
+    Wait-Control 'No matching moments' | Out-Null
+    (Wait-Control 'Reset').GetCurrentPattern([System.Windows.Automation.InvokePattern]::Pattern).Invoke()
+    Wait-Control '260 items' | Out-Null
+    Open-Exclusions
+    $rectangle=$window.Current.BoundingRectangle
+    $bitmap=[System.Drawing.Bitmap]::new([int]$rectangle.Width,[int]$rectangle.Height)
+    $graphics=[System.Drawing.Graphics]::FromImage($bitmap); $graphics.CopyFromScreen([int]$rectangle.X,[int]$rectangle.Y,0,0,$bitmap.Size)
+    $bitmap.Save((Join-Path (Get-Location) 'artifacts/qa/exclusions.png')); $graphics.Dispose(); $bitmap.Dispose()
+    Restore-Rule 'Restore Folder:'
+    Wait-Control '261 items' | Out-Null
+    $search.GetCurrentPattern([System.Windows.Automation.ValuePattern]::Pattern).SetValue('visible-raw')
+    Open-ItemMenu 'visible-raw.dng'
+    (Wait-Control 'Exclude this file type…').GetCurrentPattern([System.Windows.Automation.InvokePattern]::Pattern).Invoke()
+    (Wait-Control 'Exclude').GetCurrentPattern([System.Windows.Automation.InvokePattern]::Pattern).Invoke()
+    Wait-Control 'No matching moments' | Out-Null
+    (Wait-Control 'Reset').GetCurrentPattern([System.Windows.Automation.InvokePattern]::Pattern).Invoke()
+    Wait-Control '260 items' | Out-Null
+    (Wait-Control 'Refresh library').GetCurrentPattern([System.Windows.Automation.InvokePattern]::Pattern).Invoke()
+    (Wait-Control 'Refresh all connected sources').GetCurrentPattern([System.Windows.Automation.InvokePattern]::Pattern).Invoke()
+    Wait-Control 'Scan complete: 260 media files. Metadata saved. Navigate or Reset to apply new dates without shifting your current view.' | Out-Null
+    Open-Exclusions; Restore-Rule 'Restore File type:'
+    Wait-Control '261 items' | Out-Null
+    Open-ItemMenu 'fixture000.bmp'
+    (Wait-Control 'Exclude this source…').GetCurrentPattern([System.Windows.Automation.InvokePattern]::Pattern).Invoke()
+    (Wait-Control 'Exclude').GetCurrentPattern([System.Windows.Automation.InvokePattern]::Pattern).Invoke()
+    Wait-Control 'A little room for memories' | Out-Null
+    Open-Exclusions; Restore-Rule 'Restore Source:'
+    Wait-Control '261 items' | Out-Null
+    if (!(Test-Path (Join-Path $fixtureRoot 'Trips/fixture007.bmp')) -or !(Test-Path (Join-Path $fixtureRoot 'visible-raw.dng'))) { throw 'Exclusions changed originals.' }
+    'PASS: context folder cancellation, folder/type/source exclusions, persistent filtering through Reset and refresh, empty-library restoration, counts and originals retained.' | Set-Content artifacts/qa/exclusions.txt
     (Wait-Control 'Activity').GetCurrentPattern([System.Windows.Automation.InvokePattern]::Pattern).Invoke()
     Wait-Control 'Pause current work' | Out-Null
     (Wait-Control 'Close').GetCurrentPattern([System.Windows.Automation.InvokePattern]::Pattern).Invoke()

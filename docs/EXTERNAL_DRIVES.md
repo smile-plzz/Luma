@@ -39,3 +39,7 @@ Known source identities reopen from the saved catalog without enumerating the dr
 New imports and explicit scans checkpoint on the PC every 100 media records and at folder boundaries. Resume uses stable source identity, skips completed folders and reuses records in the interrupted folder while enumerating its filenames. The published catalog remains intact until traversal finishes. Activity exposes paused indexing and skipped-folder reports; Manage sources offers **More → Restart indexing**. Folder changes can invalidate a saved snapshot; content edits without a directory timestamp change require a subsequent fresh scan. See [resumable indexing](GALLERY_BUILD.md#resumable-indexing) for recovery, access-denied behavior and limits. Ordinary reconnect remains scan-free.
 
 On this day uses version-matched stored capture dates and the same offline thumbnail cache. It does not need to scan or read original files to select memories.
+
+## Exclusions and packaging update
+
+Reversible folder, source and global extension rules now filter browsing and future scans. Use Settings or Refresh → Manage exclusions to restore them; Reset does not remove rules. Originals and saved organization are retained. Changing rules invalidates affected paused traversal checkpoints, not the published catalog. See [usage and limits](EXCLUSIONS.md) and [executable branding](BRANDING.md).

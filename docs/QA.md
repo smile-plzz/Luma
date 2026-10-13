@@ -103,3 +103,9 @@ Native smoke selects September 2026, verifies its 29-item fixture count, visits 
 Bench acceptance: upgrade a backed-up real catalog while Luma is closed; compare date grouping against known photo dates; browse small and large months; test Ctrl/Shift selection and the simple Select mode; paste copies into a disposable Explorer folder. Measure time to first usable gallery, warm month switching and scrolling on the 200,000-item library. Pause and resume both discovery and date reading. Note HDD model, connection, file types, collection/folder counts and cache state. Do not compare synthetic SQLite timings with an initial physical-drive scan.
 
 Verified v0.4.0: [run 38307725690](https://github.com/smile-plzz/Luma/actions/runs/38307725690), source `a1c03b8323e5b80644b090bf69da88ffec92ae64`, merged through PR #12. 71 core tests on each OS, four Windows integrations, packaged XAML and native desktop checks passed. The exact package is identified in TESTING_HANDOFF.md.
+
+## Exclusions and packaging update
+
+Reversible folder, source and global extension rules now filter browsing and future scans. Use Settings or Refresh → Manage exclusions to restore them; Reset does not remove rules. Originals and saved organization are retained. Changing rules invalidates affected paused traversal checkpoints, not the published catalog. See [usage and limits](EXCLUSIONS.md) and [executable branding](BRANDING.md).
+
+Regression coverage includes case-insensitive extensions, Unicode folder names, literal wildcard characters, sibling boundaries, album/favorite preservation, source and month counts, preview retention, paused traversal invalidation, active-scan exclusion, source removal and restoration. Native automation exercises all three context actions, cancellation, Reset, a filtered rescan, restoration from an empty gallery, and EXE metadata/icon inspection. Validation results for this update will be recorded in the shipment handoff after CI finishes.
