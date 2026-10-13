@@ -51,6 +51,7 @@ public sealed partial class MainWindow : Window
         AppWindow.MoveAndResize(new global::Windows.Graphics.RectInt32(work.X + (work.Width - width) / 2,
             work.Y + (work.Height - height) / 2, width, height));
         Closed += OnClosed;
+        placeTimer.Tick+=(_,_)=>SavePlace();
         workTimer.Tick+=(_,_)=>WorkElapsed.Text=workClock.IsRunning ? workClock.Elapsed.ToString(@"hh\:mm\:ss") : "";
         Activated += async (_, e) =>
         {
@@ -70,11 +71,12 @@ public sealed partial class MainWindow : Window
             cache = await Task.Run(() => new ThumbnailCache(Path.Combine(AppSettings.LocalRoot, "thumbnails"), Math.Clamp(settings.CacheGiB, 1, 32) * 1024L * 1024 * 1024));
             thumbnails = new(cache, resolver, new WindowsThumbnailGenerator());
             if (AppSettings.IsSmokeTest) await SeedSmokeFixtures();
-            await LoadSources(); await LoadAlbums(); ApplyViewSettings(); settings.Save(); ready = true; availabilityTimer.Start(); await Refresh();
+            await LoadSources(); await LoadAlbums(); ApplyViewSettings(); settings.Save(); availabilityTimer.Start(); await RestorePlace();
         });
     }
     private async Task SeedSmokeFixtures()
     {
+        if(File.Exists(Path.Combine(AppSettings.LocalRoot,"smoke-seeded")))return;
         var folder = Path.Combine(AppSettings.LocalRoot, "Fixture originals"); Directory.CreateDirectory(folder);
         Directory.CreateDirectory(Path.Combine(folder, "Trips"));
         for (int index = 0; index < 260; index++)
@@ -93,21 +95,27 @@ public sealed partial class MainWindow : Window
         await Task.Run(() => catalog.EnrichAsync(new WindowsMetadataReader(),source.Id));
         var memory=(await catalog.QueryAsync(new(SourceId:source.Id,Search:"fixture003.bmp"))).Items.Single();
         await catalog.SaveMetadataAsync(memory.Media,new(DateTime.Now.Date.AddYears(-1).AddHours(12).ToUniversalTime().Ticks,"Smoke capture date"));
+        File.WriteAllText(Path.Combine(AppSettings.LocalRoot,"smoke-seeded"),"1");
     }
 
     private async void OnClosed(object sender, WindowEventArgs args)
     {
-        ready = false; availabilityTimer.Stop(); workTimer.Stop(); scanCancellation?.Cancel(); queryCancellation?.Cancel(); searchCancellation?.Cancel(); preparationCancellation?.Cancel();
+        SavePlace(); placeTimer.Stop(); ready = false; availabilityTimer.Stop(); workTimer.Stop(); scanCancellation?.Cancel(); queryCancellation?.Cancel(); searchCancellation?.Cancel(); preparationCancellation?.Cancel();
         try { await Task.WhenAll(cacheTasks.ToArray()); } catch (Exception) { /* Pending work must finish before releasing cache ownership. */ }
         cache?.Dispose();
     }
     private async Task Guard(Func<Task> action, bool exclusive = false)
     {
-        if (exclusive && operation) { Notify("An operation is already running. Please wait."); return; }
+        if (exclusive && operation) { Notify("Work is already running. Browse freely, or open Activity to pause it before making this change."); return; }
         if (exclusive) operation = true;
         try { await action(); }
-        catch (OperationCanceledException) { Status.Text = "Cancelled. Your saved library is intact."; }
-        catch (Exception ex) { Notify(ex.Message, true); Status.Text = "Action could not be completed."; }
+        catch (OperationCanceledException) { Status.Text = "Paused · saved library intact"; }
+        catch (Exception ex)
+        {
+            try {Directory.CreateDirectory(AppSettings.LocalRoot);File.WriteAllText(Path.Combine(AppSettings.LocalRoot,"last-error.txt"),DateTime.Now+"\n"+ex);} catch(IOException) { } catch(UnauthorizedAccessException) { }
+            Notify(string.IsNullOrWhiteSpace(ex.Message) ? "This action could not finish. Try again; diagnostic details are saved in Luma’s local data folder (last-error.txt)." : ex.Message, true);
+            Status.Text = "Action could not be completed.";
+        }
         finally { if (exclusive) operation = false; }
     }
     private void Notify(string text, bool error = false)
@@ -171,15 +179,19 @@ public sealed partial class MainWindow : Window
         try
         {
             long count = 0;
+            var batch=sources.ToArray(); int sourceNumber=0;
             var scannedIds = new List<string>();
-            foreach (var source in sources)
+            foreach (var source in batch)
             {
+                sourceNumber++;
                 var checkpoint=(await catalog.IndexingCheckpointsAsync()).FirstOrDefault(c=>c.SourceId==source.Id);
-                Status.Text = (checkpoint is null ? "Scanning " : $"Resuming {checkpoint.CompletedFolders:N0} saved folders · ") + source.RootPath;
-                var progress = new Progress<int>(n => Status.Text = $"Finding media · {n:N0} saved · {source.RootPath}");
+                ImportFeedback("discovery",$"Step 1 of 2 · Finding media · Source {sourceNumber} / {batch.Length}",source.RootPath+"\nTotal files are not known until discovery finishes. Existing media remains available. Pause saves your checkpoint.");
+                var details=new Progress<DiscoveryProgress>(p=>ImportFeedback("discovery",
+                    $"Step 1 of 2 · Finding media · {p.SavedFiles:N0} saved · Source {sourceNumber} / {batch.Length}",
+                    $"{source.RootPath}\n{p.Folder}\n{p.ExaminedFiles:N0} files examined this pass · {p.CompletedFolders:N0} folders completed · {p.SkippedFolders:N0} inaccessible.\nTotal is unknown until discovery finishes. Pause saves a checkpoint."));
                 var opened = reuseExisting
-                    ? await Task.Run(() => catalog.OpenSourceAsync(source.Id, source.RootPath, scanCancellation.Token, progress))
-                    : new SourceOpenResult(false, await Task.Run(() => catalog.ScanAsync(source.Id, source.RootPath, scanCancellation.Token, progress)));
+                    ? await Task.Run(() => catalog.OpenSourceAsync(source.Id, source.RootPath, scanCancellation.Token, details: details))
+                    : new SourceOpenResult(false, await Task.Run(() => catalog.ScanAsync(source.Id, source.RootPath, scanCancellation.Token, details: details)));
                 count += opened.MediaCount;
                 if (!opened.UsedSavedCatalog) scannedIds.Add(source.Id);
             }
@@ -190,11 +202,14 @@ public sealed partial class MainWindow : Window
                 Notify(reuseExisting ? $"Opened {count:N0} saved items without rescanning. Use Refresh to discover changed files." : "No connected sources to rescan. Saved media remains available.");
                 return;
             }
-            Status.Text = "Library available · reading capture dates and dimensions…";
-            var metadataProgress=new Progress<int>(n=>Status.Text=$"Reading dates · {n:N0} updated · Library ready to browse");
             foreach (var metadataSource in scannedIds)
-            await Task.Run(() => catalog.EnrichAsync(new WindowsMetadataReader(), metadataSource, scanCancellation.Token,
-                metadataProgress));
+            {
+                var label=batch.First(s=>s.Id==metadataSource).RootPath;
+                ImportFeedback("metadata","Step 2 of 2 · Preparing date reading",label+"\nCounting changed files. Your library is ready to browse.");
+                var metadataProgress=MetadataFeedback(label);
+                await Task.Run(()=>catalog.EnrichAsync(new WindowsMetadataReader(),metadataSource,scanCancellation.Token,details:metadataProgress));
+            }
+            Status.Text=$"Import complete · {count:N0} items";
             var warnings=(await catalog.IndexingWarningsAsync()).Count(w=>scannedIds.Contains(w.SourceId));
             Notify(warnings>0 ? $"Indexed {count:N0} media files; {warnings} inaccessible folder(s) skipped. Older catalog entries were retained. See Activity, fix access, then refresh." : $"Scan complete: {count:N0} media files. Metadata saved. Navigate or Reset to apply new dates without shifting your current view.");
         }
@@ -210,12 +225,12 @@ public sealed partial class MainWindow : Window
         }
         finally
         {
-            scanning = false; workClock.Stop(); workTimer.Stop(); WorkElapsed.Text=""; Busy.IsActive = false; CancelButton.Visibility = Visibility.Collapsed;
+            scanning = false; EndImportFeedback(); workClock.Stop(); workTimer.Stop(); WorkElapsed.Text=""; Busy.IsActive = false; CancelButton.Visibility = Visibility.Collapsed;
             AddSourceButton.IsEnabled = true;
             await LoadSources(); if(!published && ready) await Refresh();
         }
     }
-    private void CancelScan(object sender, RoutedEventArgs e) { scanCancellation?.Cancel(); preparationCancellation?.Cancel(); }
+    private void CancelScan(object sender, RoutedEventArgs e) { scanCancellation?.Cancel(); preparationCancellation?.Cancel(); Notify("Pause requested. Finishing the current operation safely; saved progress will be retained."); }
     private void SelectionChanged(object sender, SelectionChangedEventArgs e)
     {
         var card = Selected; var selected = MediaGrid.SelectedItems.Cast<MediaCard>().ToArray();
@@ -332,25 +347,26 @@ public sealed partial class MainWindow : Window
         var selected = MediaGrid.SelectedItems.Cast<MediaCard>().ToArray(); if (selected.Length == 0) return;
         var favorite = !selected.All(c => c.Item.Favorite);
         foreach (var card in selected) await catalog.AnnotateAsync(card.Item.Media, favorite, card.Item.Tags);
-        await Refresh();
+        await Refresh(); Notify($"{selected.Length:N0} item(s) {(favorite ? "added to" : "removed from")} Favorites.");
     }, true);
     private async void SaveTags(object sender, RoutedEventArgs e) => await Guard(async () =>
     {
         var selected = MediaGrid.SelectedItems.Cast<MediaCard>().ToArray();
         if (selected.Length > 1 && !await Confirm("Replace tags on selected files?", $"Replace tags for {selected.Length} selected items with the entered list.", "Save tags")) return;
+        if(selected.Length==0) {Notify("Select a file before saving tags.");return;}
         foreach (var card in selected) await catalog.AnnotateAsync(card.Item.Media, card.Item.Favorite, TagsBox.Text);
-        await Refresh();
+        await Refresh(); Notify($"Tags saved for {selected.Length:N0} item(s).");
     }, true);
     private async Task<bool> Confirm(string title, string message, string action)
     {
-        var dialog = new ContentDialog { XamlRoot = Root.XamlRoot, Title = title, Content = message, PrimaryButtonText = action, CloseButtonText = "Cancel", DefaultButton = ContentDialogButton.Close };
+        var dialog = new ContentDialog { RequestedTheme=Root.ActualTheme, XamlRoot = Root.XamlRoot, Title = title, Content = message, PrimaryButtonText = action, CloseButtonText = "Cancel", DefaultButton = ContentDialogButton.Close };
         return await dialog.ShowAsync() == ContentDialogResult.Primary;
     }
     private async Task<string?> Prompt(string title, string description, string initial)
     {
         var input = new TextBox { Text = initial, Header = description, MinWidth = 320 };
         Microsoft.UI.Xaml.Automation.AutomationProperties.SetAutomationId(input,"DialogInput");
-        var dialog = new ContentDialog { XamlRoot = Root.XamlRoot, Title = title, Content = input, PrimaryButtonText = "Save", CloseButtonText = "Cancel" };
+        var dialog = new ContentDialog { RequestedTheme=Root.ActualTheme, XamlRoot = Root.XamlRoot, Title = title, Content = input, PrimaryButtonText = "Save", CloseButtonText = "Cancel" };
         return await dialog.ShowAsync() == ContentDialogResult.Primary ? input.Text.Trim() : null;
     }
     private void ApplyTheme() => Root.RequestedTheme = Enum.TryParse<ElementTheme>(settings.Theme, out var theme) ? theme : ElementTheme.Default;
@@ -360,10 +376,13 @@ public sealed partial class MainWindow : Window
         Microsoft.UI.Xaml.Automation.AutomationProperties.SetAutomationId(theme, "ThemeSelector");
         var budget = new NumberBox { Header = "Thumbnail cache limit (GiB, applies next start)", Minimum = 1, Maximum = 32, Value = settings.CacheGiB, SpinButtonPlacementMode = NumberBoxSpinButtonPlacementMode.Compact };
         var panel = new StackPanel { Spacing = 18, MinWidth = 380 };
-        panel.Children.Add(theme); panel.Children.Add(budget); panel.Children.Add(new TextBlock { Text = "Thumbnails and metadata are saved on this PC. Old thumbnails are removed when the cache fills, including thumbnails from offline drives.", TextWrapping = TextWrapping.Wrap, MaxWidth = 400 });
-        var dialog = new ContentDialog { XamlRoot = Root.XamlRoot, Title = "Settings", Content = panel, PrimaryButtonText = "Save", CloseButtonText = "Cancel" };
+        var remember=new CheckBox { Content="Remember where I left off",IsChecked=settings.RememberPlace };
+        Microsoft.UI.Xaml.Automation.AutomationProperties.SetAutomationId(remember,"RememberPlace");
+        ToolTipService.SetToolTip(remember,"Restore your last source, folder, filters, month and visible item. Turn off to start fresh.");
+        panel.Children.Add(remember); panel.Children.Add(theme); panel.Children.Add(budget); panel.Children.Add(new TextBlock { Text = "Thumbnails and metadata are saved on this PC. Old thumbnails are removed when the cache fills, including thumbnails from offline drives.", TextWrapping = TextWrapping.Wrap, MaxWidth = 400 });
+        var dialog = new ContentDialog { RequestedTheme=Root.ActualTheme, XamlRoot = Root.XamlRoot, Title = "Settings", Content = panel, PrimaryButtonText = "Save", CloseButtonText = "Cancel" };
         bool storage=false,exclusions=false;
-        panel.Children.Add(Description("Luma · Your memories, beautifully within reach.\nVersion 0.5.0 · Windows portable"));
+        panel.Children.Add(Description("Luma · Your memories, beautifully within reach.\nVersion 0.6.0 · Windows portable"));
         panel.Children.Add(ActionButton("Manage exclusions…",()=> { exclusions=true; dialog.Hide(); }));
         panel.Children.Add(ActionButton("Storage & previews",()=> { storage=true; dialog.Hide(); }));
         var result=await dialog.ShowAsync();
@@ -371,7 +390,8 @@ public sealed partial class MainWindow : Window
         if(exclusions) { await OpenExclusions(); return; }
         if (result != ContentDialogResult.Primary) return;
         settings.Theme = theme.SelectedItem?.ToString() ?? "Default"; settings.CacheGiB = double.IsNaN(budget.Value) ? 2 : (int)Math.Clamp(budget.Value, 1, 32);
-        settings.Save(); ApplyTheme();
+        settings.RememberPlace=remember.IsChecked==true; if(!settings.RememberPlace)settings.Place=null;
+        settings.Save(); ApplyTheme(); Notify("Settings saved. Cache size changes apply next time you open Luma.");
     }, true);
     private bool HandleShortcut(KeyboardAcceleratorInvokedEventArgs e)
     {

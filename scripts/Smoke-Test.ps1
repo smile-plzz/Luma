@@ -7,7 +7,7 @@ Add-Type -AssemblyName System.Windows.Forms
 New-Item -ItemType Directory -Force artifacts/qa | Out-Null
 $exe = (Resolve-Path $Executable).Path
 $version=[System.Diagnostics.FileVersionInfo]::GetVersionInfo($exe)
-if ($version.ProductName -ne 'Luma' -or $version.FileVersion -ne '0.5.0.0' -or $version.FileDescription -ne 'Luma — Local media gallery') { throw 'Executable branding/version metadata is incorrect.' }
+if ($version.ProductName -ne 'Luma' -or $version.FileVersion -ne '0.6.0.0' -or $version.FileDescription -ne 'Luma — Local media gallery') { throw 'Executable branding/version metadata is incorrect.' }
 if (!(Test-Path (Join-Path (Split-Path $exe) 'Assets/Luma.ico'))) { throw 'Window icon is missing.' }
 $icon=[System.Drawing.Icon]::ExtractAssociatedIcon($exe)
 if (!$icon) { throw 'Executable icon is missing.' }
@@ -51,6 +51,21 @@ try {
     function Wait-Control([string]$Name) {
         for ($j = 0; $j -lt 120; $j++) { $found = Find-Control $Name; if ($found) { return $found }; Start-Sleep -Milliseconds 500 }
         throw "Control did not become available: $Name"
+    }
+    function Restart-App([switch]$DisconnectFixture) {
+        $process.CloseMainWindow() | Out-Null
+        if (!$process.WaitForExit(10000)) { throw 'App did not close for position test.' }
+        if ($DisconnectFixture) { Move-Item $fixtureRoot ($fixtureRoot + ' disconnected') }
+        $script:process=Start-Process $exe -ArgumentList $launchArgs -PassThru
+        $script:window=$null
+        for ($i=0;$i -lt 60;$i++) {
+            Start-Sleep -Milliseconds 500
+            $condition=[System.Windows.Automation.PropertyCondition]::new([System.Windows.Automation.AutomationElement]::ProcessIdProperty,$process.Id)
+            $script:window=[System.Windows.Automation.AutomationElement]::RootElement.FindFirst([System.Windows.Automation.TreeScope]::Children,$condition)
+            if($window -and $window.Current.Name -eq 'Luma') { break }
+        }
+        Wait-Control 'Welcome back. Your last view is restored.' | Out-Null
+        Start-Sleep -Seconds 1
     }
     Wait-Control 'fixture000.bmp' | Out-Null
     Start-Sleep -Seconds 3
@@ -368,6 +383,64 @@ try {
     Wait-Control '261 items' | Out-Null
     if (!(Test-Path (Join-Path $fixtureRoot 'Trips/fixture007.bmp')) -or !(Test-Path (Join-Path $fixtureRoot 'visible-raw.dng'))) { throw 'Exclusions changed originals.' }
     'PASS: context folder cancellation, folder/type/source exclusions, persistent filtering through Reset and refresh, empty-library restoration, counts and originals retained.' | Set-Content artifacts/qa/exclusions.txt
+    # Save a deep position, restart, and verify a bounded anchored window rather than replaying all earlier pages.
+    (Wait-Control 'Reset').GetCurrentPattern([System.Windows.Automation.InvokePattern]::Pattern).Invoke()
+    (Wait-Control 'Sort order').GetCurrentPattern([System.Windows.Automation.ExpandCollapsePattern]::Pattern).Expand()
+    (Wait-Control 'Name').GetCurrentPattern([System.Windows.Automation.SelectionItemPattern]::Pattern).Select()
+    $direction=(Wait-Control 'Descending order').GetCurrentPattern([System.Windows.Automation.TogglePattern]::Pattern)
+    if ($direction.Current.ToggleState -eq [System.Windows.Automation.ToggleState]::On) { $direction.Toggle() }
+    (Wait-Control 'Gallery view options').GetCurrentPattern([System.Windows.Automation.InvokePattern]::Pattern).Invoke()
+    (Find-Id 'GroupBox').GetCurrentPattern([System.Windows.Automation.ExpandCollapsePattern]::Pattern).Expand()
+    (Wait-Control 'None').GetCurrentPattern([System.Windows.Automation.SelectionItemPattern]::Pattern).Select()
+    [System.Windows.Forms.SendKeys]::SendWait('{ESC}')
+    $gallery=Find-Id 'MediaGrid'; $scroll=$gallery.GetCurrentPattern([System.Windows.Automation.ScrollPattern]::Pattern)
+    for ($k=0;$k -lt 12;$k++) { $scroll.SetScrollPercent(-1,100); Start-Sleep -Milliseconds 200 }
+    $scroll.SetScrollPercent(-1,65); Start-Sleep -Seconds 2
+    $saved=Get-Content (Join-Path $smokeRoot 'settings.json') -Raw | ConvertFrom-Json
+    if (!$saved.Place.AnchorPath) { throw 'Visible anchor was not saved.' }
+    $anchorName=[System.IO.Path]::GetFileName($saved.Place.AnchorPath)
+    Restart-App
+    $anchor=Wait-Control $anchorName
+    if ($anchor.Current.IsOffscreen) { throw 'Restored anchor is offscreen.' }
+    Wait-Control 'Earlier items' | Out-Null
+    $gallery=Find-Id 'MediaGrid'
+    $actualInset=$anchor.Current.BoundingRectangle.Y-$gallery.Current.BoundingRectangle.Y
+    if ([Math]::Abs($actualInset-$saved.Place.Inset) -gt 60) { throw "Restored offset differs: saved $($saved.Place.Inset), actual $actualInset" }
+    (Wait-Control 'Earlier items').GetCurrentPattern([System.Windows.Automation.InvokePattern]::Pattern).Invoke()
+    Start-Sleep -Seconds 1
+    if ((Wait-Control $anchorName).Current.IsOffscreen) { throw 'Loading earlier items lost the visible anchor.' }
+    (Wait-Control 'Reset').GetCurrentPattern([System.Windows.Automation.InvokePattern]::Pattern).Invoke()
+    Wait-Control 'fixture000.bmp' | Out-Null
+    # Persist source, nested folder and month, then reopen entirely from the offline catalog.
+    (Wait-Control 'Months').GetCurrentPattern([System.Windows.Automation.InvokePattern]::Pattern).Invoke()
+    (Wait-Control 'Source filter').GetCurrentPattern([System.Windows.Automation.ExpandCollapsePattern]::Pattern).Expand()
+    $nodes=$window.FindAll([System.Windows.Automation.TreeScope]::Descendants,[System.Windows.Automation.Condition]::TrueCondition)
+    $sourceItem=$nodes | Where-Object { $_.Current.Name -like '*Fixture originals' } | Select-Object -First 1
+    $sourceItem.GetCurrentPattern([System.Windows.Automation.SelectionItemPattern]::Pattern).Select()
+    $folder=Wait-Control 'Trips';$pattern=$null
+    while($folder -and !$folder.TryGetCurrentPattern([System.Windows.Automation.SelectionItemPattern]::Pattern,[ref]$pattern)) { $folder=[System.Windows.Automation.TreeWalker]::ControlViewWalker.GetParent($folder) }
+    $pattern.Select(); Wait-Control '1 of 261 items · Filtered' | Out-Null
+    Start-Sleep -Seconds 1
+    Wait-Control 'fixture007.bmp' | Out-Null
+    (Wait-Control 'Browse month').GetCurrentPattern([System.Windows.Automation.ExpandCollapsePattern]::Pattern).Expand()
+    (Wait-Control 'September 2026 · 1').GetCurrentPattern([System.Windows.Automation.SelectionItemPattern]::Pattern).Select()
+    Start-Sleep -Seconds 2
+    $beforeRestart=Get-Content (Join-Path $smokeRoot 'settings.json') -Raw | ConvertFrom-Json
+    if ($beforeRestart.Place.Month -ne '2026-09') { throw 'Month was not saved before restart.' }
+    Copy-Item (Join-Path $smokeRoot 'settings.json') artifacts/qa/before-offline-restart.json
+    Restart-App -DisconnectFixture
+    Wait-Control 'fixture007.bmp' | Out-Null
+    if ((Wait-Control 'Folder path').GetCurrentPattern([System.Windows.Automation.ValuePattern]::Pattern).Current.Value -ne 'Trips') { throw 'Folder did not survive restart.' }
+    $saved=Get-Content (Join-Path $smokeRoot 'settings.json') -Raw | ConvertFrom-Json
+    if ($saved.Place.Month -ne '2026-09' -or !$saved.Place.SourceId) { throw 'Month/source did not survive restart.' }
+    Move-Item ($fixtureRoot + ' disconnected') $fixtureRoot
+    (Wait-Control 'Reset').GetCurrentPattern([System.Windows.Automation.InvokePattern]::Pattern).Invoke()
+    Wait-Control 'fixture000.bmp' | Out-Null
+    if ((Wait-Control 'Activity').Current.HelpText -notlike '*elapsed*') { throw 'Activity help text is missing.' }
+    $phases=Get-Content (Join-Path $smokeRoot 'import-phases.txt')
+    if ($phases -notcontains 'discovery' -or $phases -notcontains 'metadata') { throw 'Import phases were not both reported.' }
+    Copy-Item (Join-Path $smokeRoot 'import-phases.txt') artifacts/qa/import-phases.txt
+    'PASS: deep visible anchor and inset restored; earlier items preserve position; source/folder/month survive offline restart; Reset returns to start; both import phases and accessible help verified.' | Set-Content artifacts/qa/final-experience.txt
     (Wait-Control 'Activity').GetCurrentPattern([System.Windows.Automation.InvokePattern]::Pattern).Invoke()
     Wait-Control 'Pause current work' | Out-Null
     (Wait-Control 'Close').GetCurrentPattern([System.Windows.Automation.InvokePattern]::Pattern).Invoke()
@@ -403,6 +476,8 @@ try {
             $bmp.Save((Join-Path (Get-Location) 'artifacts/qa/failure.png')); $g.Dispose(); $bmp.Dispose()
         }
     }
+    if (Test-Path (Join-Path $smokeRoot "settings.json")) { Copy-Item (Join-Path $smokeRoot "settings.json") artifacts/qa/failure-settings.json }
+    if (Test-Path (Join-Path $smokeRoot "last-error.txt")) { Copy-Item (Join-Path $smokeRoot "last-error.txt") artifacts/qa/last-error.txt }
     $log = Join-Path (Split-Path $exe) 'startup-error.txt'
     if (Test-Path $log) { Get-Content $log; Copy-Item $log artifacts/qa/startup-error.txt }
     Get-WinEvent -FilterHashtable @{LogName='Application'; StartTime=(Get-Date).AddMinutes(-5)} -ErrorAction SilentlyContinue |

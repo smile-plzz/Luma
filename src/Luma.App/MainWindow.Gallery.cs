@@ -43,10 +43,11 @@ public sealed partial class MainWindow
         Navigation.SelectedItem?.ToString() == "Favorites",(MediaSort)settings.SortIndex,0,120,FolderFilter.Text.Trim(),settings.Descending,SelectedAlbum,settings.IncludeDescendants,settings.CommonOnly,beforeTicks,MemoriesOn:IsMemories ? MemoryDay : null,FromTicks:fromTicks);
 
     private Task Refresh() => RefreshGallery(false);
-    private async Task RefreshGallery(bool reuseMonths)
+    private async Task RefreshGallery(bool reuseMonths,int startOffset=0)
     {
         if (!ready) return;
         queryCancellation?.Cancel(); queryCancellation = new(); var token = queryCancellation.Token;
+        loadedStart=startOffset; ResumeNavigation.Visibility=loadedStart>0 ? Visibility.Visible : Visibility.Collapsed;
         cursor = null; exhausted = false; loading = false;
         foreach(var card in cards) { card.Realized=false; card.Thumbnail=null; card.ThumbnailRequest?.Cancel(); card.ThumbnailRequest=null; }
         cards.Clear(); groups.Clear(); activeQuery = CurrentQuery();
@@ -70,12 +71,12 @@ public sealed partial class MainWindow
         MonthBrowser.Visibility=!IsMemories && settings.SortIndex is 0 or 1 or 4 ? Visibility.Visible : Visibility.Collapsed;
         var monthIndex=monthBuckets.ToList().FindIndex(m=>m.Month==selectedMonth);
         NewerMonthButton.IsEnabled=monthIndex>0; OlderMonthButton.IsEnabled=monthBuckets.Count>0 && monthIndex<monthBuckets.Count-1;
-        AllMonthsButton.IsEnabled=selectedMonth is not null; ready=wasReady;
+        AllMonthsButton.IsEnabled=selectedMonth is not null; ready=wasReady; SchedulePlaceSave();
     }
     private async Task LoadMore()
     {
         if (!ready || loading || exhausted || activeQuery is null || queryCancellation is null) return;
-        var generation = queryCancellation; var ct = generation.Token; var query = activeQuery with { Cursor=cursor,KnownTotal=cursor is null ? null : total };
+        var generation = queryCancellation; var ct = generation.Token; var query = activeQuery with { Offset=cursor is null ? loadedStart : 0,Cursor=cursor,KnownTotal=cursor is null ? null : total };
         loading = true; Busy.IsActive = true;
         try
         {
@@ -90,7 +91,7 @@ public sealed partial class MainWindow
                     groups[^1].Add(card);
                 }
             }
-            exhausted = page.Items.Count < query.Limit || cards.Count >= total;
+            exhausted = page.Items.Count < query.Limit || loadedStart + cards.Count >= total;
             EmptyState.Visibility = cards.Count == 0 ? Visibility.Visible : Visibility.Collapsed;
             EmptyTitle.Text = SearchBox.Text.Length > 0 ? "No matching moments" : "A little room for memories";
             EmptyText.Text = SearchBox.Text.Length > 0 ? "Try another name, folder or tag, or choose Reset to clear browsing filters." : "Add a folder or drive to begin. If you already have a library, choose Reset to clear browsing filters.";
@@ -124,7 +125,8 @@ public sealed partial class MainWindow
         galleryScroll = Descendant<ScrollViewer>(MediaGrid);
         if(galleryScroll is not null) galleryScroll.ViewChanged += async (_,_) =>
         {
-            if(ready && galleryScroll.VerticalOffset + galleryScroll.ViewportHeight >= galleryScroll.ExtentHeight - 600) await Guard(LoadMore);
+            SchedulePlaceSave();
+            if(ready && !restoringPlace && galleryScroll.VerticalOffset + galleryScroll.ViewportHeight >= galleryScroll.ExtentHeight - 600) await Guard(LoadMore);
         };
     }
     private async void TileChanging(ListViewBase sender,ContainerContentChangingEventArgs e)
@@ -195,7 +197,7 @@ public sealed partial class MainWindow
     }
     private async void NavigationChanged(object sender,SelectionChangedEventArgs e)
     {
-        if(!ready) return; Heading.Text=Navigation.SelectedItem?.ToString() ?? "Library";
+        if(!ready || restoringPlace) return; Heading.Text=Navigation.SelectedItem?.ToString() ?? "Library";
         ready=false;
         MemoryDate.Visibility = IsMemories ? Visibility.Visible : Visibility.Collapsed;
         if (IsMemories) { MemoryDate.MaxDate=DateTimeOffset.Now; MemoryDate.Date=DateTimeOffset.Now; settings.GroupIndex=1; GroupBox.SelectedIndex=1; settings.Descending=true; DescendingButton.IsChecked=true; }
@@ -208,12 +210,12 @@ public sealed partial class MainWindow
     }
     private async void MemoryDateChanged(CalendarDatePicker sender, CalendarDatePickerDateChangedEventArgs args)
     {
-        if(!ready || !IsMemories) return;
+        if(!ready || restoringPlace || !IsMemories) return;
         ClearDateRange(); await Guard(Refresh);
     }
     private async void FilterChanged(object sender,SelectionChangedEventArgs e)
     {
-        if(!ready) return;
+        if(!ready || restoringPlace) return;
         if(ReferenceEquals(sender,Sources)) FolderFilter.Text="";
         settings.SortIndex=Math.Max(0,SortBox.SelectedIndex);
         if(settings.SortIndex==1) { settings.Descending=false; DescendingButton.IsChecked=false; }
@@ -221,13 +223,13 @@ public sealed partial class MainWindow
     }
     private async void SearchChanged(object sender,TextChangedEventArgs e)
     {
-        if(!ready) return; searchCancellation?.Cancel(); var cts=new CancellationTokenSource(); searchCancellation=cts;
+        if(!ready || restoringPlace) return; searchCancellation?.Cancel(); var cts=new CancellationTokenSource(); searchCancellation=cts;
         try { await Task.Delay(300,cts.Token); ClearDateRange(); await Guard(Refresh); } catch(OperationCanceledException) { }
     }
     private async void DirectionChanged(object sender,RoutedEventArgs e)
-    { if(!ready)return; settings.Descending=DescendingButton.IsChecked==true; settings.Save(); await Guard(Refresh); }
+    { if(!ready || restoringPlace)return; settings.Descending=DescendingButton.IsChecked==true; settings.Save(); await Guard(Refresh); }
     private async void GroupChanged(object sender,SelectionChangedEventArgs e)
-    { if(!ready)return; settings.GroupIndex=Math.Max(0,GroupBox.SelectedIndex); settings.Save(); await Guard(Refresh); }
+    { if(!ready || restoringPlace)return; settings.GroupIndex=Math.Max(0,GroupBox.SelectedIndex); settings.Save(); await Guard(Refresh); }
     private void ThumbnailSizeChanged(object sender,RangeBaseValueChangedEventArgs e)
     { if(!ready)return; settings.ThumbnailSize=(int)e.NewValue; UpdateAppearance(); }
     private void AppearanceChanged(object sender,RoutedEventArgs e)
@@ -242,19 +244,18 @@ public sealed partial class MainWindow
         if(anchor is not null) MediaGrid.ScrollIntoView(anchor,ScrollIntoViewAlignment.Leading);
     }
     private async void ContentFilterChanged(object sender,RoutedEventArgs e)
-    { if(!ready)return; settings.CommonOnly=CommonToggle.IsChecked==true; settings.IncludeDescendants=RecursiveToggle.IsChecked==true; settings.Save(); await Guard(Refresh); }
+    { if(!ready || restoringPlace)return; settings.CommonOnly=CommonToggle.IsChecked==true; settings.IncludeDescendants=RecursiveToggle.IsChecked==true; settings.Save(); await Guard(Refresh); }
     private void ClearDateRange() { beforeTicks=null; fromTicks=null; selectedMonth=null; }
     private async void JumpDate(object sender,SelectionChangedEventArgs e)
     {
-        if(!ready || DateJump.SelectedItem is not MonthBucket month)return;
+        if(!ready || restoringPlace || DateJump.SelectedItem is not MonthBucket month)return;
         await ChooseMonth(month);
     }
     private async Task ChooseMonth(MonthBucket month)
     {
+        searchCancellation?.Cancel();
         var date=DateTime.ParseExact(month.Month+"-01","yyyy-MM-dd",System.Globalization.CultureInfo.InvariantCulture);
-        selectedMonth=month.Month;
-        fromTicks=DateTime.SpecifyKind(date,DateTimeKind.Local).ToUniversalTime().Ticks;
-        beforeTicks=DateTime.SpecifyKind(date.AddMonths(1),DateTimeKind.Local).ToUniversalTime().Ticks-1;
+        SetMonth(date);
         await Guard(()=>RefreshGallery(true));
     }
     private async void ClearMonth(object sender,RoutedEventArgs e) { ClearDateRange(); await Guard(()=>RefreshGallery(true)); }

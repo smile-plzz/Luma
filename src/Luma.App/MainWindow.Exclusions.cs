@@ -37,7 +37,7 @@ public sealed partial class MainWindow
             var rules=await catalog.ExclusionsAsync();var sources=await Task.Run(()=>catalog.SourcesAsync());
             var panel=new StackPanel { Spacing=12,MinWidth=360 };
             panel.Children.Add(Description("Excluded media is hidden and skipped during scanning and preview preparation. Restore keeps saved organization; refresh the source to discover files skipped while excluded. Reset filters does not remove these rules."));
-            var dialog=new ContentDialog { XamlRoot=Root.XamlRoot,Title="Library exclusions",Content=new ScrollViewer {Content=panel,MaxHeight=460},CloseButtonText="Done" };
+            var dialog=new ContentDialog { RequestedTheme=Root.ActualTheme, XamlRoot=Root.XamlRoot,Title="Library exclusions",Content=new ScrollViewer {Content=panel,MaxHeight=460},CloseButtonText="Done" };
             void Choose(Func<Task> next) { action=next;again=true;dialog.Hide(); }
             if(rules.Count==0)panel.Children.Add(Description("No exclusions. Everything supported is included."));
             foreach(var rule in rules)

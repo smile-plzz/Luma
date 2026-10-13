@@ -73,3 +73,7 @@ Core tests also run on Linux. GitHub Actions builds the app, runs Windows integr
 ### Indexing recovery and memories
 
 Interrupted imports save progress on your PC. Use **Activity → Resume paused indexing** after reconnecting; **Manage sources → More → Restart indexing** starts fresh and Activity lists skipped folders. Your published gallery remains available while indexing finishes. **On this day** brings together matching capture dates from earlier years and works with saved offline previews. [Usage and limits](docs/GALLERY_BUILD.md#resumable-indexing).
+
+## Final experience refinement
+
+Saved browsing position, explicit discovery/date-reading progress, accessible action hints and theme-matched dialogs complete the planned build. See [behavior and limits](docs/FINAL_EXPERIENCE.md). Exact shipment evidence is recorded after verification.

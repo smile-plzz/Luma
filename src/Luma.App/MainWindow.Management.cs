@@ -11,6 +11,21 @@ public sealed partial class MainWindow
     private Button ActionButton(string text,Action action)
     {
         var button=new Button { Content=text,HorizontalAlignment=HorizontalAlignment.Left };
+        var help=text switch {
+            "Repair missing previews"=>"Create missing previews for this scope. Existing previews and originals are preserved.",
+            "Rebuild previews"=>"Regenerate previews. Keep existing previews when originals are offline or generation fails.",
+            "Clear selected previews"=>"Remove cached previews for the chosen scope after confirmation. Originals and organization remain.",
+            "Clean unused previews"=>"Remove orphaned previews across all sources after confirmation; previews retained for exclusions are kept.",
+            "Browse"=>"Open this source from its saved catalog, including while offline.",
+            "Remove from Luma"=>"Remove this source's library records and organization after confirmation. Originals remain untouched.",
+            "Restore"=>"Remove this exclusion and reveal already cataloged media. Refresh later to discover skipped files.",
+            "Exclude file type"=>"Exclude the entered extension across every source after confirmation.",
+            "Exclude selected source"=>"Hide the selected registered source and skip its scans until restored.",
+            "Exclude a folder…"=>"Choose a folder inside a registered source to exclude along with its subfolders.",
+            "Pause current work"=>"Request a safe pause. Saved scan checkpoints and completed metadata batches are retained.",
+            "Resume paused indexing"=>"Continue saved discovery checkpoints on connected sources.",
+            _=>null };
+        if(help is not null) { ToolTipService.SetToolTip(button,help); Microsoft.UI.Xaml.Automation.AutomationProperties.SetHelpText(button,help); }
         button.Click+=(_,_)=>action(); return button;
     }
     private async Task RefreshSources(string? id)
@@ -34,7 +49,7 @@ public sealed partial class MainWindow
         var counts=await catalog.SourceCountsAsync(); var labels=await catalog.SourceLabelsAsync();
         var checkpoints=await catalog.IndexingCheckpointsAsync();
         var panel=new StackPanel { Spacing=16,MinWidth=400 };
-        var dialog=new ContentDialog { XamlRoot=Root.XamlRoot,Title="Manage sources",Content=new ScrollViewer { MaxHeight=440,Content=panel },CloseButtonText="Close" };
+        var dialog=new ContentDialog { RequestedTheme=Root.ActualTheme, XamlRoot=Root.XamlRoot,Title="Manage sources",Content=new ScrollViewer { MaxHeight=440,Content=panel },CloseButtonText="Close" };
         Func<Task>? action=null;
         void Choose(Func<Task> selected) { action=selected; dialog.Hide(); }
         panel.Children.Add(Description("Your folders stay where they are. Removing a source only removes it from Luma."));
@@ -94,7 +109,7 @@ public sealed partial class MainWindow
         var content=new StackPanel { Spacing=14 };
         content.Children.Add(Description($"Remove {source.RootPath} from Luma?\n\n{count:N0} catalog items, their favorites, tags and album memberships will be removed. Original files will not be deleted or moved. Adding it again will scan it as a new source."));
         content.Children.Add(removePreviews);
-        var dialog=new ContentDialog { XamlRoot=Root.XamlRoot,Title="Remove source from Luma?",Content=content,PrimaryButtonText="Remove from Luma",CloseButtonText="Cancel",DefaultButton=ContentDialogButton.Close };
+        var dialog=new ContentDialog { RequestedTheme=Root.ActualTheme, XamlRoot=Root.XamlRoot,Title="Remove source from Luma?",Content=content,PrimaryButtonText="Remove from Luma",CloseButtonText="Cancel",DefaultButton=ContentDialogButton.Close };
         if(await dialog.ShowAsync()!=ContentDialogResult.Primary)return;
         await catalog.RemoveSourceAsync(id);
         if(SelectedSource==id) { var wasReady=ready; ready=false; FolderFilter.Text=""; ClearDateRange(); ready=wasReady; }
@@ -123,7 +138,7 @@ public sealed partial class MainWindow
         scope.SelectionChanged+=async (_,_)=>await Guard(UpdateStats);
         var panel=new StackPanel { Spacing=12,MinWidth=400 }; panel.Children.Add(scope); panel.Children.Add(stats);
         panel.Children.Add(Description("Repair creates missing previews. Rebuild replaces previews only after successful generation, preserving offline previews. Neither changes your originals or organization."));
-        var dialog=new ContentDialog { XamlRoot=Root.XamlRoot,Title="Storage & previews",Content=panel,CloseButtonText="Close" };
+        var dialog=new ContentDialog { RequestedTheme=Root.ActualTheme, XamlRoot=Root.XamlRoot,Title="Storage & previews",Content=panel,CloseButtonText="Close" };
         Func<Task>? action=null;
         void Choose(Func<string?,Task> selected) { var id=(scope.SelectedItem as SourceChoice)?.Id; action=()=>selected(id); dialog.Hide(); }
         panel.Children.Add(ActionButton("Repair missing previews",()=>Choose(id=>RunPreviewMaintenance(id,false))));
@@ -198,16 +213,16 @@ public sealed partial class MainWindow
         var checkpoints=await catalog.IndexingCheckpointsAsync(); var warnings=await catalog.IndexingWarningsAsync();
         var sources=await catalog.SourcesAsync();
         string Name(string id)=>sources.FirstOrDefault(s=>s.Id==id)?.RootPath ?? id;
-        var live=Description(Status.Text); var panel=new StackPanel { Spacing=12,MinWidth=400 }; panel.Children.Add(live);
-        var pause=ActionButton("Pause current work",()=> { scanCancellation?.Cancel(); preparationCancellation?.Cancel(); });
+        var live=Description(ActivityStatus()); var panel=new StackPanel { Spacing=12,MinWidth=400 }; panel.Children.Add(live);
+        var pause=ActionButton("Pause current work",()=> { CancelScan(sender,e); });
         panel.Children.Add(pause);
         panel.Children.Add(Description(string.Join("\n",checkpoints.Select(c=>$"Paused: {Name(c.SourceId)} · {c.MediaCount:N0} file records saved"))));
         panel.Children.Add(Description(string.Join("\n",warnings.Select(w=>$"Skipped {Name(w.SourceId)} / {w.Folder}: {w.Message}"))));
         panel.Children.Add(Description("Recent activity this session\n"+string.Join("\n\n",recentActivity.Reverse())));
         var timer=new DispatcherTimer { Interval=TimeSpan.FromMilliseconds(500) };
-        timer.Tick+=(_,_)=> { live.Text=Status.Text; pause.IsEnabled=scanning || preparing; };
+        timer.Tick+=(_,_)=> { live.Text=ActivityStatus(); pause.IsEnabled=scanning || preparing; };
         pause.IsEnabled=scanning || preparing;
-        var dialog=new ContentDialog { XamlRoot=Root.XamlRoot,Title="Activity",Content=new ScrollViewer { MaxHeight=440,Content=panel },CloseButtonText="Close" };
+        var dialog=new ContentDialog { RequestedTheme=Root.ActualTheme, XamlRoot=Root.XamlRoot,Title="Activity",Content=new ScrollViewer { MaxHeight=440,Content=panel },CloseButtonText="Close" };
         var resume=ActionButton("Resume paused indexing",()=>dialog.Hide());
         bool retry=false; resume.Click+=(_,_)=>retry=true; resume.IsEnabled=!operation && checkpoints.Count>0; panel.Children.Add(resume);
         timer.Start(); try { await dialog.ShowAsync(); } finally { timer.Stop(); }

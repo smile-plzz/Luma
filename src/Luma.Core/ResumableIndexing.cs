@@ -47,7 +47,7 @@ public sealed partial class MediaCache
 
     // Completed folders are skipped; an interrupted folder re-enumerates names but reuses
     // committed file records. Every 100 files are checkpointed, including after a crash.
-    public async Task<int> ScanAsync(string sourceId, string root, CancellationToken ct = default, IProgress<int>? progress = null)
+    public async Task<int> ScanAsync(string sourceId, string root, CancellationToken ct = default, IProgress<int>? progress = null, IProgress<DiscoveryProgress>? details = null)
     {
         if (string.IsNullOrWhiteSpace(sourceId)) throw new ArgumentException("Source ID required",nameof(sourceId));
         ct.ThrowIfCancellationRequested();
@@ -82,7 +82,7 @@ public sealed partial class MediaCache
             while(await r.ReadAsync(ct)) completed.Add((r.GetString(0),r.GetInt64(1)));
         }
         if (completed.Any(f => !Directory.Exists(Path.Combine(root,f.Path)) || new DirectoryInfo(Path.Combine(root,f.Path)).Attributes.HasFlag(FileAttributes.ReparsePoint) || Directory.GetLastWriteTimeUtc(Path.Combine(root,f.Path)).Ticks != f.Stamp))
-            await Sql(ClearScan);
+            { await Sql(ClearScan); completed.Clear(); }
         await using(var tx=db.BeginTransaction())
         {
             await Sql("DELETE FROM scan_warnings WHERE source_id=$id AND NOT EXISTS(SELECT 1 FROM scan_jobs WHERE source_id=$id); INSERT OR IGNORE INTO sources VALUES($id,$root,$seen); INSERT OR IGNORE INTO scan_jobs VALUES($id); INSERT OR IGNORE INTO scan_folders(source_id,path) VALUES($id,'');",tx,
@@ -90,6 +90,14 @@ public sealed partial class MediaCache
             await tx.CommitAsync(ct);
         }
         var count=checked((int)await Sql("SELECT COUNT(*) FROM scan_media WHERE source_id=$id"));
+        long examined=0,foldersDone=completed.Count,skipped=0;
+        var heartbeat=System.Diagnostics.Stopwatch.StartNew();
+        void Report(string folder,bool force=false)
+        {
+            if(details is null || (!force && heartbeat.ElapsedMilliseconds<500))return;
+            details.Report(new(folder,examined,count,foldersDone,skipped)); heartbeat.Restart();
+        }
+        Report("",true);
         while(true)
         {
             VerifySource();
@@ -100,6 +108,7 @@ public sealed partial class MediaCache
                 folder=await cmd.ExecuteScalarAsync(ct) as string;
             }
             if(folder is null) break;
+            Report(folder);
             try
             {
             var directory=Path.Combine(root,folder);
@@ -139,11 +148,11 @@ public sealed partial class MediaCache
                     insert.Parameters["$kind"].Value=Videos.Contains(info.Extension) ? "video" : "photo";
                     await insert.ExecuteNonQueryAsync(ct);
                 }
-                await tx.CommitAsync(ct); count+=batch.Count; batch.Clear(); progress?.Report(count);
+                await tx.CommitAsync(ct); count+=batch.Count; batch.Clear(); progress?.Report(count); Report(folder);
             }
             foreach(var info in new DirectoryInfo(directory).EnumerateFiles())
             {
-                ct.ThrowIfCancellationRequested();
+                ct.ThrowIfCancellationRequested(); examined++; Report(folder);
                 if(exclusions.Any(e=>e.Matches(sourceId,Path.GetRelativePath(root,info.FullName))))continue;
                 if(!Extensions.Contains(info.Extension) || savedPaths.Contains(Path.GetRelativePath(root,info.FullName))) continue;
                 if(info.Attributes.HasFlag(FileAttributes.ReparsePoint)) continue;
@@ -163,7 +172,7 @@ public sealed partial class MediaCache
                 if(Directory.GetLastWriteTimeUtc(directory).Ticks != stamp)
                     throw new IOException("Folder contents changed during indexing. Choose Resume indexing to retry.");
                 await Sql("UPDATE scan_folders SET done=1,stamp=$stamp WHERE source_id=$id AND path=$path",tx,("$stamp",stamp),("$path",folder));
-                await tx.CommitAsync(ct);
+                await tx.CommitAsync(ct); foldersDone++; Report(folder);
             }
             }
             catch(UnauthorizedAccessException ex)
@@ -171,7 +180,7 @@ public sealed partial class MediaCache
                 VerifySource();
                 await using var tx=db.BeginTransaction();
                 await Sql("INSERT OR REPLACE INTO scan_warnings VALUES($id,$folder,$message); UPDATE scan_folders SET done=1,stamp=0 WHERE source_id=$id AND path=$folder",tx,("$folder",folder),("$message",ex.Message));
-                await tx.CommitAsync(ct);
+                await tx.CommitAsync(ct); skipped++; foldersDone++; Report(folder);
             }
         }
         VerifySource();
@@ -187,6 +196,6 @@ public sealed partial class MediaCache
                 """.Replace("__ALLOWED__",AllowedMediaSql) + ClearScan,tx,("$root",root),("$seen",DateTime.UtcNow.ToString("O")));
             VerifySource(); await tx.CommitAsync(ct);
         }
-        progress?.Report(total); return total;
+        Report("",true); progress?.Report(total); return total;
     }
 }
