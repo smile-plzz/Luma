@@ -117,3 +117,7 @@ Verified v0.4.0: [run 38307725690](https://github.com/smile-plzz/Luma/actions/ru
 Reversible folder, source and global extension rules now filter browsing and future scans. Use Settings or Refresh → Manage exclusions to restore them; Reset does not remove rules. Originals and saved organization are retained. Changing rules invalidates affected paused traversal checkpoints, not the published catalog. See [usage and limits](EXCLUSIONS.md) and [executable branding](BRANDING.md).
 
 Regression coverage includes case-insensitive extensions, Unicode folder names, literal wildcard characters, sibling boundaries, album/favorite preservation, source and month counts, preview retention, paused traversal invalidation, active-scan exclusion, source removal and restoration. Native automation exercises all three context actions, cancellation, Reset, a filtered rescan, restoration from an empty gallery, and EXE metadata/icon inspection. The successful v0.5.0 run and exact package are recorded in the shipment handoff.
+
+## Final experience refinement
+
+Saved browsing position, explicit discovery/date-reading progress, accessible action hints and theme-matched dialogs complete the planned build. See [behavior and limits](FINAL_EXPERIENCE.md). Exact shipment evidence is recorded after verification.

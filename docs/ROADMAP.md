@@ -29,3 +29,7 @@ User-confirmed real-machine functionality led to a discoverability-focused follo
 ## Exclusions and packaging update
 
 Reversible folder, source and global extension rules now filter browsing and future scans. Use Settings or Refresh → Manage exclusions to restore them; Reset does not remove rules. Originals and saved organization are retained. Changing rules invalidates affected paused traversal checkpoints, not the published catalog. See [usage and limits](EXCLUSIONS.md) and [executable branding](BRANDING.md).
+
+## Final experience refinement
+
+Saved browsing position, explicit discovery/date-reading progress, accessible action hints and theme-matched dialogs complete the planned build. See [behavior and limits](FINAL_EXPERIENCE.md). Exact shipment evidence is recorded after verification.

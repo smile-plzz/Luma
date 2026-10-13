@@ -76,10 +76,25 @@ public sealed partial class MediaCache
         return labels;
     }
 
-    public async Task<int> EnrichAsync(IMetadataReader reader, string? sourceId = null, CancellationToken ct = default, IProgress<int>? progress = null)
+    public async Task<int> EnrichAsync(IMetadataReader reader, string? sourceId = null, CancellationToken ct = default, IProgress<int>? progress = null, IProgress<MetadataProgress>? details = null)
     {
         int count = 0; string lastSource="",lastPath="";
         await using var db=CreateConnection(); await db.OpenAsync(ct);
+        long checkedCount=0,totalPending=0,skippedCount=0;
+        if(details is not null)
+        {
+            await using var pending=db.CreateCommand();
+            pending.CommandText="SELECT COUNT(*) FROM media m LEFT JOIN metadata d ON d.source_id=m.source_id AND d.relative_path=m.relative_path AND d.length=m.length AND d.modified_ticks=m.modified_ticks WHERE ($source IS NULL OR m.source_id=$source) AND d.source_id IS NULL AND "+AllowedMediaSql;
+            pending.Parameters.AddWithValue("$source",(object?)sourceId ?? DBNull.Value);
+            totalPending=Convert.ToInt64(await pending.ExecuteScalarAsync(ct));
+            details.Report(new("",0,totalPending,0,0));
+        }
+        var heartbeat=System.Diagnostics.Stopwatch.StartNew();
+        void Report(string path,bool force=false)
+        {
+            if(details is null || (!force && heartbeat.ElapsedMilliseconds<500))return;
+            details.Report(new(path,checkedCount,totalPending,count,skippedCount)); heartbeat.Restart();
+        }
         while(true)
         {
             // Read bounded batches of missing/stale metadata; release the reader before
@@ -105,16 +120,19 @@ public sealed partial class MediaCache
             foreach(var media in batch)
             {
                 ct.ThrowIfCancellationRequested(); lastSource=media.SourceId; lastPath=media.RelativePath;
-                var root=sourceResolver?.ResolveRoot(media.SourceId); if(root is null)continue;
-                var path=SourcePaths.Combine(root,media.RelativePath);
+                Report(media.RelativePath);
+                bool saved=false;
                 try
                 {
+                    var root=sourceResolver?.ResolveRoot(media.SourceId); if(root is null)continue;
+                    var path=SourcePaths.Combine(root,media.RelativePath);
                     if(!VersionMatches(path,media))continue;
                     var data=await reader.ReadAsync(path,media.Kind,ct);
                     if(sourceResolver?.ResolveRoot(media.SourceId)!=root || !VersionMatches(path,media))continue;
-                    updates.Add((media,data));
+                    updates.Add((media,data)); saved=true;
                 }
                 catch(IOException) { } catch(UnauthorizedAccessException) { }
+                finally { checkedCount++; if(!saved)skippedCount++; }
             }
             // No filesystem/codec work while holding SQLite's write transaction.
             await using(var tx=db.BeginTransaction())
@@ -139,9 +157,9 @@ public sealed partial class MediaCache
                 }
                 await tx.CommitAsync(ct);
             }
-            progress?.Report(count);
+            progress?.Report(count); Report(lastPath,true);
         }
-        return count;
+        Report("",true); return count;
     }
 
     public Task SaveMetadataAsync(CachedMedia media, MediaMetadata data, CancellationToken ct = default) => ExecuteAsync("""

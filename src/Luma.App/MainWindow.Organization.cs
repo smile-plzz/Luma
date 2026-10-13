@@ -40,7 +40,7 @@ public sealed partial class MainWindow
         var albums=await catalog.AlbumsAsync();
         if(albums.Count==0) { Notify("Create an album in the sidebar first.");return; }
         var picker=new ComboBox { ItemsSource=albums,SelectedIndex=0,MinWidth=280 };
-        var dialog=new ContentDialog { XamlRoot=Root.XamlRoot,Title=$"Add {items.Length} items to album",Content=picker,PrimaryButtonText="Add",CloseButtonText="Cancel" };
+        var dialog=new ContentDialog { RequestedTheme=Root.ActualTheme, XamlRoot=Root.XamlRoot,Title=$"Add {items.Length} items to album",Content=picker,PrimaryButtonText="Add",CloseButtonText="Cancel" };
         if(await dialog.ShowAsync()!=ContentDialogResult.Primary)return;
         await catalog.SetAlbumItemsAsync(((Album)picker.SelectedItem).Id,items,true); await LoadAlbums(); Notify("Added to album. Originals stayed in place.");
     },true);
@@ -55,11 +55,12 @@ public sealed partial class MainWindow
         scanning=true; workClock.Restart(); workTimer.Start(); scanCancellation=new(); Busy.IsActive=true; CancelButton.Visibility=Visibility.Visible;
         try
         {
-            var progress=new Progress<int>(n=>Status.Text=$"Metadata · {n:N0} updated");
-            var count=await Task.Run(()=>catalog.EnrichAsync(new WindowsMetadataReader(),source,scanCancellation.Token,progress));
+            ImportFeedback("metadata","Reading dates · Preparing", "Counting changed files. Saved media remains available.");
+            var details=MetadataFeedback(source ?? "All sources","Metadata");
+            var count=await Task.Run(()=>catalog.EnrichAsync(new WindowsMetadataReader(),source,scanCancellation.Token,details:details));
             Notify($"Metadata refreshed for {count:N0} changed files. Unsupported dates use modification time.");
         }
-        finally { scanning=false; workClock.Stop(); workTimer.Stop(); WorkElapsed.Text=""; Busy.IsActive=false; CancelButton.Visibility=Visibility.Collapsed; if(ready)await Refresh(); }
+        finally { scanning=false; EndImportFeedback(); workClock.Stop(); workTimer.Stop(); WorkElapsed.Text=""; Busy.IsActive=false; CancelButton.Visibility=Visibility.Collapsed; if(ready)await Refresh(); }
     }
     private void StartDrag(object sender,DragItemsStartingEventArgs e)
     {

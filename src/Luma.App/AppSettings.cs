@@ -2,6 +2,8 @@ using System.Text.Json;
 namespace Luma.App;
 public sealed class AppSettings
 {
+    public bool RememberPlace { get; set; } = true;
+    public BrowsePlace? Place { get; set; }
     public int SortIndex { get; set; } = 4;
     public bool Descending { get; set; } = true;
     public int GroupIndex { get; set; } = 2;
@@ -49,3 +51,6 @@ public sealed class AppSettings
         File.WriteAllText(path + ".tmp", JsonSerializer.Serialize(this)); File.Move(path + ".tmp", path, true);
     }
 }
+
+public sealed record BrowsePlace(string? SourceId=null,string Folder="",string Search="",string? AlbumId=null,
+    int Navigation=0,string? Month=null,string? MemoryDay=null,string? AnchorSource=null,string? AnchorPath=null,double Inset=0);
