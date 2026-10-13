@@ -329,6 +329,7 @@ try {
         Wait-Control 'No exclusions. Everything supported is included.' | Out-Null
         (Wait-Control 'Done').GetCurrentPattern([System.Windows.Automation.InvokePattern]::Pattern).Invoke()
     }
+    $search=Wait-Control 'Search library'
     $search.GetCurrentPattern([System.Windows.Automation.ValuePattern]::Pattern).SetValue('fixture007')
     Open-ItemMenu 'fixture007.bmp'
     (Wait-Control 'Exclude this folder…').GetCurrentPattern([System.Windows.Automation.InvokePattern]::Pattern).Invoke()

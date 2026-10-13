@@ -93,11 +93,16 @@ public sealed partial class MainWindow
             exhausted = page.Items.Count < query.Limit || cards.Count >= total;
             EmptyState.Visibility = cards.Count == 0 ? Visibility.Visible : Visibility.Collapsed;
             EmptyTitle.Text = SearchBox.Text.Length > 0 ? "No matching moments" : "A little room for memories";
-            EmptyText.Text = SearchBox.Text.Length > 0 ? "Try another name, folder or tag, or choose Reset to see your library again." : "Add a folder or drive to begin. If you already have a library, choose Reset to see all your moments.";
+            EmptyText.Text = SearchBox.Text.Length > 0 ? "Try another name, folder or tag, or choose Reset to clear browsing filters." : "Add a folder or drive to begin. If you already have a library, choose Reset to clear browsing filters.";
             if (IsMemories && cards.Count == 0)
             {
                 EmptyTitle.Text = "No memories for this day yet";
                 EmptyText.Text = "Choose another day or add more photos. Memories use recorded capture dates from earlier years; files without a capture date remain in your library. Active filters also apply.";
+            }
+            if(cards.Count==0 && (await catalog.ExclusionsAsync(ct)).Count>0)
+            {
+                ct.ThrowIfCancellationRequested();
+                EmptyText.Text += " Exclusions are active. Open Refresh → Manage exclusions to review or restore hidden media.";
             }
             LibrarySummary.Text = IsMemories ? $"{MemoryDay:MMMM d} · {total:N0} memories · {libraryTotal:N0} library items" : ActiveFilters.Children.Count>0 ? $"{total:N0} of {libraryTotal:N0} items · Filtered" : $"{total:N0} items";
             if (!scanning && !preparing) Status.Text = total == 0 ? "" : exhausted ? "You’re all caught up" : "Scroll to explore";
