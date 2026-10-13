@@ -22,7 +22,7 @@
     <PackageReference Include="Microsoft.Windows.SDK.BuildTools" Version="10.0.26100.4654" />
     <ProjectReference Include="../Luma.Windows/Luma.Windows.csproj" />
   </ItemGroup>
-  <ItemGroup><Content Include="Assets/Luma.ico" CopyToOutputDirectory="PreserveNewest" CopyToPublishDirectory="PreserveNewest" /></ItemGroup>
+  <ItemGroup><Content Update="Assets/Luma.ico" CopyToOutputDirectory="PreserveNewest" CopyToPublishDirectory="PreserveNewest" /></ItemGroup>
   <Target Name="IncludeWinUIResourcesInPublish" AfterTargets="Publish">
     <ItemGroup><_WinUIResources Include="$(OutDir)**\*.xbf;$(OutDir)**\*.pri" /></ItemGroup>
     <Copy SourceFiles="@(_WinUIResources)" DestinationFiles="@(_WinUIResources->'$(PublishDir)%(RecursiveDir)%(Filename)%(Extension)')" SkipUnchangedFiles="true" />
