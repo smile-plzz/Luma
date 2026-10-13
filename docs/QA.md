@@ -1,5 +1,13 @@
 # QA
 
+## v0.5.0 verified exclusions and branding shipment
+
+Exact package from [successful build 38350255657](https://github.com/smile-plzz/Luma/actions/runs/38350255657), source `b7d9eb16cc3547c64928e8fbdc202b7e0a400083`, merged through [PR #13](https://github.com/smile-plzz/Luma/pull/13) at `4941618f865a95cccbae01f1fc464d1b97e9e4a7`. All 77 core tests passed on each of Windows and Linux, four Windows integration tests passed, and the packaged app passed native UI automation for exclusions and existing workflows. The exclusion dialog screenshot and embedded executable icon were inspected.
+
+SHA-256: `e28cdc156a234b57b68a2561bd8fad51bbbc43c9d8351c16f90312a9c2513aad`. Also supplied in SHA256SUMS.txt. Physical HDD performance and codec acceptance remain part of real-life testing.
+
+Native `exclusions.txt` verifies folder cancellation, folder/type/source hiding, persistence through Reset and refresh, restoration from an empty gallery, counts and originals retained. `executable-metadata.txt` verifies the product, descriptive file properties and version; `executable-icon.png` shows the embedded icon. Existing native workflows remain green.
+
 ## v0.3.0 verified filters and navigation shipment
 
 [Run 38260963380](https://github.com/smile-plzz/Luma/actions/runs/38260963380), source `35103a06e88f85a2129ff7eb96bb6e65996f1185`: 67 core tests pass on each OS, four Windows integrations pass, and packaged native desktop smoke passes. `filters-navigation.txt` verifies non-everyday media visibility, filtered counts, chip removal, Reset and consolidated navigation; the script also opens Timeline and checks pinned Settings/Storage visibility. Existing gallery, offline, reconnect, memories and management checks pass. Light/dark screenshots were inspected. Merged through [PR #11](https://github.com/smile-plzz/Luma/pull/11). See TESTING_HANDOFF.md for the exact package and checksum.
@@ -12,7 +20,7 @@
 
 [Run 38168157835](https://github.com/smile-plzz/Luma/actions/runs/38168157835), source `ef23349e82723c98636f9e3a6acad5d7c210f135`: all jobs passed. 58 core cases passed on each of Windows and Linux; four Windows integration tests and the native desktop smoke passed. `memories.txt` verifies capture-date browsing while offline; `reconnect.txt` verifies preserved selection/scroll without indexing. Light/dark screenshots were inspected. PR #9 is merged at `ab08a6c67faf894d09dce5a7a1feddd8b5a90d5e`; its source tree matches the tested commit. See [the handoff](TESTING_HANDOFF.md) for the ZIP and checksum.
 
-## Current verified shipment
+## Earlier reconnect shipment
 
 [Run 38151631336](https://github.com/smile-plzz/Luma/actions/runs/38151631336), commit `4e31cf2d0b6473a4dc51fdbc4cada0915912cb17`: all jobs passed. 51 core cases pass on each of Windows and Linux, four Windows integrations pass, and the complete desktop smoke passes. Its reconnect evidence verifies selection and scroll retention and no silent discovery of a new file. PR #8 is merged. See [the current handoff](TESTING_HANDOFF.md) for the verified ZIP.
 
@@ -32,7 +40,7 @@ The 260-fixture native run peaked at 58 decoded images and restored 170px thumbn
 
 `Luma.Windows.Tests` exercises actual Windows volume GUID registration/resolution, stable registration with trailing separators, distinct folder IDs and malformed IDs. A generated BMP fixture also tests WinRT thumbnail generation through a resolved volume path and cached retrieval after deleting that fixture. Core CI runs on Windows and Linux; Windows integration runs on Windows.
 
-Native media tests use small fixtures; catalog scale tests use 1k, 10k and 100k synthetic SQLite records. They do not establish full-library UI responsiveness or 100,000-image decoding performance. Simulated root changes and disconnects do not replace hardware testing. Cancellation coverage includes both pre-cancelled calls and cancellation after 100 indexed files; identity loss during indexing also verifies transaction rollback. Low-disk faults still require manual coverage.
+Native media tests use small fixtures; catalog scale tests use 1k, 10k, 100k and 200k synthetic SQLite records. They do not establish full-library UI responsiveness or 100,000-image decoding performance. Simulated root changes and disconnects do not replace hardware testing. Cancellation coverage includes both pre-cancelled calls and cancellation after 100 indexed files; identity loss during indexing also verifies transaction rollback. Low-disk faults still require manual coverage.
 
 ## Real-life acceptance still pending
 
@@ -108,4 +116,4 @@ Verified v0.4.0: [run 38307725690](https://github.com/smile-plzz/Luma/actions/ru
 
 Reversible folder, source and global extension rules now filter browsing and future scans. Use Settings or Refresh → Manage exclusions to restore them; Reset does not remove rules. Originals and saved organization are retained. Changing rules invalidates affected paused traversal checkpoints, not the published catalog. See [usage and limits](EXCLUSIONS.md) and [executable branding](BRANDING.md).
 
-Regression coverage includes case-insensitive extensions, Unicode folder names, literal wildcard characters, sibling boundaries, album/favorite preservation, source and month counts, preview retention, paused traversal invalidation, active-scan exclusion, source removal and restoration. Native automation exercises all three context actions, cancellation, Reset, a filtered rescan, restoration from an empty gallery, and EXE metadata/icon inspection. Validation results for this update will be recorded in the shipment handoff after CI finishes.
+Regression coverage includes case-insensitive extensions, Unicode folder names, literal wildcard characters, sibling boundaries, album/favorite preservation, source and month counts, preview retention, paused traversal invalidation, active-scan exclusion, source removal and restoration. Native automation exercises all three context actions, cancellation, Reset, a filtered rescan, restoration from an empty gallery, and EXE metadata/icon inspection. The successful v0.5.0 run and exact package are recorded in the shipment handoff.

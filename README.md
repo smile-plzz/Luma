@@ -1,15 +1,15 @@
 # Luma
 
-**[Download Luma for Windows](https://github.com/smile-plzz/Luma/releases/latest/download/Luma-v0.4.0-win-x64.zip)** · [Release notes](https://github.com/smile-plzz/Luma/releases/latest)
+**[Download Luma for Windows](https://github.com/smile-plzz/Luma/releases/latest/download/Luma-v0.5.0-win-x64.zip)** · [Release notes](https://github.com/smile-plzz/Luma/releases/latest)
 
 A native Windows media library for existing folders and drives. Browse photos and videos, organize favorites and tags, and open originals in your default apps.
 
-Development of the portable gallery milestone is complete and merged into `main`. Luma is now in real-life testing and everyday-use evaluation; the current shipment includes the UI refinement, import-lock correction and cached-drive reconnect optimization from PRs #7 and #8, plus resumable indexing and On this day memories from PR #9. Source management, explicit refresh scopes, preview repair/rebuild, storage cleanup and Activity shipped in v0.2.0. The v0.3.0 update shows all supported formats by default, exposes removable filters and filtered counts, makes Reset complete, and simplifies navigation and maintenance. The v0.4.0 update adds month navigation with counts, simple multi-file Select mode, and large-library indexing and browsing optimizations. See the [performance measurements](docs/PERFORMANCE.md). Start with the [testing handoff](docs/TESTING_HANDOFF.md) for the verified shipment, setup and feedback checklist.
+Development of the portable gallery milestone is complete and merged into `main`. Luma is now in real-life testing and everyday-use evaluation; the current shipment includes the UI refinement, import-lock correction and cached-drive reconnect optimization from PRs #7 and #8, plus resumable indexing and On this day memories from PR #9. Source management, explicit refresh scopes, preview repair/rebuild, storage cleanup and Activity shipped in v0.2.0. The v0.3.0 update shows all supported formats by default, exposes removable filters and filtered counts, makes Reset complete, and simplifies navigation and maintenance. The v0.4.0 update adds month navigation with counts, simple multi-file Select mode, and large-library indexing and browsing optimizations. The v0.5.0 update adds reversible source, folder and file-type exclusions, scan filtering and original Windows executable branding. See the [performance measurements](docs/PERFORMANCE.md). Start with the [testing handoff](docs/TESTING_HANDOFF.md) for the verified shipment, setup and feedback checklist.
 
 ## Run the Windows app
 
 1. Open the [verified Windows download](https://github.com/smile-plzz/Luma/releases/latest) in **Releases**.
-2. Download the **Luma-v0.4.0-win-x64.zip** under Assets. The automatically generated Source code archives do not contain the EXE.
+2. Download the **Luma-v0.5.0-win-x64.zip** under Assets. The automatically generated Source code archives do not contain the EXE.
 3. Extract the entire ZIP to a writable folder and run **Luma.App.exe**. Keep the bundled files beside the executable.
 4. Select **Add folder or drive**. Browse the indexed media; thumbnails are cached as you browse.
 

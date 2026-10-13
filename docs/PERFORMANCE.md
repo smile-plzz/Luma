@@ -1,4 +1,17 @@
-# Large-library performance — v0.4.0
+# Large-library performance
+
+## v0.5.0 validation
+
+[Run 38350255657](https://github.com/smile-plzz/Luma/actions/runs/38350255657), source `b7d9eb16cc3547c64928e8fbdc202b7e0a400083`, exercises 200,000 catalog records with the exclusion-aware query implementation and no active rules.
+
+| Environment | First 120 records and count | Next page | Month breakdown |
+| --- | ---: | ---: | ---: |
+| Windows | 53.06 ms | 1.67 ms | 506.31 ms |
+| Linux | 42.01 ms | 1.51 ms | 967.90 ms |
+
+[Windows raw result](performance/windows-v0.5.0-200000.json) · [Linux raw result](performance/linux-v0.5.0-200000.json). Single-run synthetic database timings; not a controlled before/after comparison, UI frame rate or physical-drive throughput. Exclusion predicates add catalog work; real timings depend on rules and filtering. The retained records make exclusion restoration immediate without rediscovery.
+
+## v0.4.0 reference measurements
 
 Measured in [run 38307725690](https://github.com/smile-plzz/Luma/actions/runs/38307725690), source `a1c03b8323e5b80644b090bf69da88ffec92ae64`. Fixture: 200,000 synthetic SQLite records, four runner processors, 120 items per page. These are single-run measurements, not percentiles or a physical-drive benchmark.
 
